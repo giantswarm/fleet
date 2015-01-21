@@ -257,7 +257,7 @@ func (s *Server) Supervise() {
 	close(s.stopc)
 	done := make(chan struct{})
 	go func() {
-		s.wg.Done()
+		s.wg.Wait()
 		close(done)
 	}()
 	select {
