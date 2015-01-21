@@ -120,7 +120,7 @@ func main() {
 		}
 
 		log.Infof("Restarting server components")
-		srv.Stop()
+		srv.Kill()
 
 		srv, err = server.New(*cfg)
 		if err != nil {
@@ -135,7 +135,7 @@ func main() {
 		srvMutex.Lock()
 		defer srvMutex.Unlock()
 
-		srv.Stop()
+		srv.Kill()
 		srv.Purge()
 		os.Exit(0)
 	}
