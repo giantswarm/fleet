@@ -15,8 +15,7 @@
 package registry
 
 import (
-	etcd "github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/etcd/client"
-
+	"github.com/coreos/fleet/etcd"
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/unit"
 )
@@ -30,7 +29,7 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 		Raw: u.String(),
 	}
 
-	val, err := marshal(um)
+	json, err := marshal(um)
 	if err != nil {
 		return err
 	}
@@ -50,6 +49,10 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 
 // getUnitByHash retrieves from the Registry the Unit associated with the given Hash
 func (r *EtcdRegistry) getUnitByHash(hash unit.Hash) *unit.UnitFile {
+	if unitFile := unitFileCache.get(hash); unitFile != nil {
+		return unitFile
+	}
+
 	key := r.hashedUnitPath(hash)
 	opts := &etcd.GetOptions{
 		Recursive: true,
@@ -73,6 +76,7 @@ func (r *EtcdRegistry) getUnitByHash(hash unit.Hash) *unit.UnitFile {
 		return nil
 	}
 
+	unitFileCache.cache(hash, u)
 	return u
 }
 
