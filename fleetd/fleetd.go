@@ -18,9 +18,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/rakyll/globalconf"
 
@@ -124,7 +127,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	writeState := func() {
+	writeState := func(out io.Writer) {
 		log.Infof("Dumping server state")
 
 		encoded, err := json.Marshal(srv)
@@ -138,16 +141,31 @@ func main() {
 			return
 		}
 
-		os.Stdout.Write([]byte("\n"))
+		out.Write([]byte("\n"))
 
 		log.Debugf("Finished dumping server state")
+	}
+
+	writeStateFile := func() {
+		tempFile, err := ioutil.TempFile("", fmt.Sprintf("fleetd-state-%d-%d.json", os.Getpid(), time.Now().Unix()))
+		if err != nil {
+			log.Errorf("Failed to create temporary file")
+			return
+		}
+		defer tempFile.Close()
+		writeState(tempFile)
+	}
+
+	writeStateStdout := func() {
+		writeState(os.Stdout)
 	}
 
 	signals := map[os.Signal]func(){
 		syscall.SIGHUP:  reconfigure,
 		syscall.SIGTERM: shutdown,
 		syscall.SIGINT:  shutdown,
-		syscall.SIGUSR1: writeState,
+		syscall.SIGUSR1: writeStateStdout,
+		syscall.SIGUSR2: writeStateFile,
 	}
 
 	listenForSignals(signals)
