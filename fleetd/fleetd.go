@@ -129,7 +129,7 @@ func main() {
 			return
 		}
 
-		if _, err := os.Stdout.Write(encoded); err != nil {
+		if _, err := out.Write(encoded); err != nil {
 			log.Errorf("Failed to dump server state: %v", err)
 			return
 		}
