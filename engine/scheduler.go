@@ -22,6 +22,7 @@ import (
 
 	"github.com/coreos/fleet/agent"
 	"github.com/coreos/fleet/job"
+	"github.com/coreos/fleet/log"
 )
 
 type decision struct {
@@ -43,7 +44,8 @@ func (lls *leastLoadedScheduler) Decide(clust *clusterState, j *job.Job) (*decis
 
 	var target *agent.AgentState
 	for _, as := range agents {
-		if able, _ := as.AbleToRun(j); !able {
+		if able, reason := as.AbleToRun(j); !able {
+			log.V(1).Infof("job %s can't run on %s: %s", j.Name, as.MState.ID, reason)
 			continue
 		}
 
