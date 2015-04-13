@@ -32,7 +32,7 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 		Raw: u.String(),
 	}
 
-	val, err := marshal(um)
+	json, err := marshal(um)
 	if err != nil {
 		return err
 	}
@@ -52,6 +52,10 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 
 // getUnitByHash retrieves from the Registry the Unit associated with the given Hash
 func (r *EtcdRegistry) getUnitByHash(hash unit.Hash) *unit.UnitFile {
+	if unitFile := unitFileCache.get(hash); unitFile != nil {
+		return unitFile
+	}
+
 	key := r.hashedUnitPath(hash)
 	opts := &etcd.GetOptions{
 		Recursive: true,
@@ -114,6 +118,7 @@ func (r *EtcdRegistry) unitFromEtcdNode(hash unit.Hash, etcdNode *etcd.Node) *un
 		return nil
 	}
 
+	unitFileCache.cache(hash, u)
 	return u
 }
 
