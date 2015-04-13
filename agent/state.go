@@ -19,6 +19,7 @@ package agent
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/log"
@@ -96,6 +97,7 @@ func (as *AgentState) AbleToRun(j *job.Job) (bool, string) {
 	}
 
 	peers := j.Peers()
+	gsLog(j, fmt.Sprintf("job %s peers: %+v", j.Name, peers))
 	if len(peers) != 0 {
 		for _, peer := range peers {
 			if !as.unitScheduled(peer) {
@@ -104,9 +106,16 @@ func (as *AgentState) AbleToRun(j *job.Job) (bool, string) {
 		}
 	}
 
+	gsLog(j, fmt.Sprintf("job %s conflicts: %+v", j.Name, j.Conflicts()))
 	if cExists, cJobName := as.hasConflict(j.Name, j.Conflicts()); cExists {
 		return false, fmt.Sprintf("found conflict with locally-scheduled Unit(%s)", cJobName)
 	}
 
 	return true, ""
+}
+
+func gsLog(j *job.Job, msg string) {
+	if strings.Contains(j.Name, "app") {
+		log.V(1).Info(msg)
+	}
 }
