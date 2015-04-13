@@ -25,16 +25,22 @@ func init() {
 	// cleanup old entries every 30 minutes
 	go func() {
 		for _ = range time.Tick(30 * time.Minute) {
-			unitFileCache.mu.Lock()
-			lastAccessLimit := time.Now().Add(-30 * time.Minute)
-			for k, v := range unitFileCache.unitFiles {
-				if v.lastAccess.Before(lastAccessLimit) {
-					delete(unitFileCache.unitFiles, k)
-				}
-			}
-			unitFileCache.mu.Unlock()
+			unitFileCache.cleanupOlderThan(30 * time.Minute)
 		}
 	}()
+}
+
+func (uf *unitFileCacheT) cleanupOlderThan(maxAge time.Duration) {
+	uf.mu.Lock()
+	defer uf.mu.Unlock()
+
+	lastAccessLimit := time.Now().Add(-maxAge)
+
+	for k, v := range uf.unitFiles {
+		if v.lastAccess.Before(lastAccessLimit) {
+			delete(uf.unitFiles, k)
+		}
+	}
 }
 
 func (uf *unitFileCacheT) get(hash unit.Hash) *unit.UnitFile {
@@ -42,6 +48,7 @@ func (uf *unitFileCacheT) get(hash unit.Hash) *unit.UnitFile {
 	defer uf.mu.Unlock()
 
 	if cacheEntry, exists := uf.unitFiles[hash]; exists {
+		cacheEntry.lastAccess = time.Now()
 		return cacheEntry.unitFile
 	}
 	return nil
