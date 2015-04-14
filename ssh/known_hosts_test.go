@@ -167,7 +167,9 @@ func TestWrongHostKeyFile(t *testing.T) {
 	// If run as root, drop privileges temporarily
 	if id := syscall.Geteuid(); id == 0 {
 		if err := syscall.Setuid(12345); err != nil {
-			t.Fatalf("error setting uid: %v", err)
+			// Setuid is no longer functional on linux with go 1.4 so we silently ignore this test
+			t.Errorf("error setting uid: %v", err)
+			return
 		}
 		defer syscall.Setuid(id)
 	}
