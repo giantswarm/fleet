@@ -269,7 +269,7 @@ func (r *EtcdRegistry) getUnitFromObjectNode(node *etcd.Node) (*job.Unit, error)
 
 	var unit *unit.UnitFile
 
-	unit = r.getUnitByHash(jm.UnitHash)
+	unit = r.getUnitByHash(jm.UnitHash, jm.Name)
 	if unit == nil {
 		log.Warningf("No Unit found in Registry for Job(%s)", jm.Name)
 		return nil, nil
