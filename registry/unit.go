@@ -51,8 +51,8 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 }
 
 // getUnitByHash retrieves from the Registry the Unit associated with the given Hash
-func (r *EtcdRegistry) getUnitByHash(hash unit.Hash) *unit.UnitFile {
-	if unitFile := unitFileCache.get(hash); unitFile != nil {
+func (r *EtcdRegistry) getUnitByHash(hash unit.Hash, jobName string) *unit.UnitFile {
+	if unitFile := unitFileCache.get(hash, jobName); unitFile != nil {
 		return unitFile
 	}
 
@@ -118,7 +118,7 @@ func (r *EtcdRegistry) unitFromEtcdNode(hash unit.Hash, etcdNode *etcd.Node) *un
 		return nil
 	}
 
-	unitFileCache.cache(hash, u)
+	unitFileCache.cache(hash, jobName, u)
 	return u
 }
 
