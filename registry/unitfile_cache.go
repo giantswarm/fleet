@@ -13,14 +13,14 @@ type unitFileCacheEntry struct {
 }
 
 type unitFileCacheT struct {
-	unitFiles map[unit.Hash]*unitFileCacheEntry
+	unitFiles map[string]*unitFileCacheEntry
 	mu        *sync.Mutex
 }
 
 var unitFileCache unitFileCacheT
 
 func init() {
-	unitFileCache = unitFileCacheT{map[unit.Hash]*unitFileCacheEntry{}, new(sync.Mutex)}
+	unitFileCache = unitFileCacheT{map[string]*unitFileCacheEntry{}, new(sync.Mutex)}
 
 	// cleanup old entries every 30 minutes
 	go func() {
@@ -43,20 +43,26 @@ func (uf *unitFileCacheT) cleanupOlderThan(maxAge time.Duration) {
 	}
 }
 
-func (uf *unitFileCacheT) get(hash unit.Hash) *unit.UnitFile {
+func (uf *unitFileCacheT) get(hash unit.Hash, jobName string) *unit.UnitFile {
 	uf.mu.Lock()
 	defer uf.mu.Unlock()
 
-	if cacheEntry, exists := uf.unitFiles[hash]; exists {
+	key := uf.createKey(hash, jobName)
+	if cacheEntry, exists := uf.unitFiles[key]; exists {
 		cacheEntry.lastAccess = time.Now()
 		return cacheEntry.unitFile
 	}
 	return nil
 }
 
-func (uf *unitFileCacheT) cache(hash unit.Hash, unitFile *unit.UnitFile) {
+func (uf *unitFileCacheT) cache(hash unit.Hash, jobName string, unitFile *unit.UnitFile) {
 	uf.mu.Lock()
 	defer uf.mu.Unlock()
 
-	uf.unitFiles[hash] = &unitFileCacheEntry{unitFile, time.Now()}
+	key := uf.createKey(hash, jobName)
+	uf.unitFiles[key] = &unitFileCacheEntry{unitFile, time.Now()}
+}
+
+func (uf *unitFileCacheT) createKey(hash unit.Hash, jobName string) string {
+	return hash.String() + "-" + jobName
 }
