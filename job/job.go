@@ -86,6 +86,8 @@ type Job struct {
 	TargetState     JobState
 	TargetMachineID string
 	Unit            unit.UnitFile
+
+	cachedRequirements map[string][]string
 }
 
 // ScheduledUnit represents a Unit known by fleet and encapsulates its current scheduling state. This does not include Global units.
@@ -101,14 +103,23 @@ type Unit struct {
 	Name        string
 	Unit        unit.UnitFile
 	TargetState JobState
+
+	cachedJob *Job
+}
+
+func (u *Unit) getJob() *Job {
+	if u.cachedJob == nil {
+		u.cachedJob = &Job{
+			Name: u.Name,
+			Unit: u.Unit,
+		}
+	}
+	return u.cachedJob
 }
 
 // IsGlobal returns whether a Unit is considered a global unit
 func (u *Unit) IsGlobal() bool {
-	j := &Job{
-		Name: u.Name,
-		Unit: u.Unit,
-	}
+	j := u.getJob()
 	values := j.requirements()[fleetGlobal]
 	if len(values) == 0 {
 		return false
@@ -133,34 +144,22 @@ func NewJob(name string, unit unit.UnitFile) *Job {
 
 // The following helper functions are to facilitate the transition from Job --> Unit
 func (u *Unit) Conflicts() []string {
-	j := &Job{
-		Name: u.Name,
-		Unit: u.Unit,
-	}
+	j := u.getJob()
 	return j.Conflicts()
 }
 
 func (u *Unit) Peers() []string {
-	j := &Job{
-		Name: u.Name,
-		Unit: u.Unit,
-	}
+	j := u.getJob()
 	return j.Peers()
 }
 
 func (u *Unit) RequiredTarget() (string, bool) {
-	j := &Job{
-		Name: u.Name,
-		Unit: u.Unit,
-	}
+	j := u.getJob()
 	return j.RequiredTarget()
 }
 
 func (u *Unit) RequiredTargetMetadata() map[string]pkg.Set {
-	j := &Job{
-		Name: u.Name,
-		Unit: u.Unit,
-	}
+	j := u.getJob()
 	return j.RequiredTargetMetadata()
 }
 
@@ -169,6 +168,9 @@ func (u *Unit) RequiredTargetMetadata() map[string]pkg.Set {
 // This prefix is stripped from relevant options before being returned.
 // Furthermore, specifier substitution (using unitPrintf) is performed on all requirements.
 func (j *Job) requirements() map[string][]string {
+	if j.cachedRequirements != nil {
+		return j.cachedRequirements
+	}
 	uni := unit.NewUnitNameInfo(j.Name)
 	requirements := make(map[string][]string)
 	for key, values := range j.Unit.Contents["X-Fleet"] {
@@ -184,6 +186,7 @@ func (j *Job) requirements() map[string][]string {
 		requirements[key] = values
 	}
 
+	j.cachedRequirements = requirements
 	return requirements
 }
 

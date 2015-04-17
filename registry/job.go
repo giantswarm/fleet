@@ -257,10 +257,16 @@ func dirToHeartbeat(dir *etcd.Node) (heartbeat string) {
 	return getValueInDir(dir, "job-state")
 }
 
+var objectNodeUnitCache map[string]*job.Unit = map[string]*job.Unit{}
+
 // getUnitFromObject takes a *etcd.Node containing a Unit's jobModel, and
 // instantiates and returns a representative *job.Unit, transitively fetching the
 // associated UnitFile as necessary
 func (r *EtcdRegistry) getUnitFromObjectNode(node *etcd.Node) (*job.Unit, error) {
+
+	if cachedUnit, exists := objectNodeUnitCache[node.Value]; exists {
+		return cachedUnit, nil
+	}
 	var err error
 	var jm jobModel
 	if err = unmarshal(node.Value, &jm); err != nil {
