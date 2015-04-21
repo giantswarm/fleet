@@ -180,6 +180,7 @@ func (m *systemdUnitManager) getUnitState(name string) (*unit.UnitState, error) 
 		LoadState:   info["LoadState"].(string),
 		ActiveState: info["ActiveState"].(string),
 		SubState:    info["SubState"].(string),
+		UnitName:    name,
 	}
 	return &us, nil
 }
@@ -229,6 +230,7 @@ func (m *systemdUnitManager) GetUnitStates(filter pkg.Set) (map[string]*unit.Uni
 			LoadState:   dus.LoadState,
 			ActiveState: dus.ActiveState,
 			SubState:    dus.SubState,
+			UnitName:    dus.Name,
 		}
 		if h, ok := m.hashes[dus.Name]; ok {
 			us.UnitHash = h.String()
