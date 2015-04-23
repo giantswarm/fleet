@@ -17,6 +17,7 @@ package registry
 import (
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/fleet/etcd"
@@ -34,33 +35,80 @@ const (
 type etcdEventStream struct {
 	etcd       etcd.Client
 	rootPrefix string
+
+	l         *sync.Mutex
+	listeners map[chan pkg.Event]struct{}
+	stop      chan struct{}
+	running   bool
 }
 
 func NewEtcdEventStream(client etcd.Client, rootPrefix string) pkg.EventStream {
-	return &etcdEventStream{client, rootPrefix}
+	return &etcdEventStream{
+		client,
+		rootPrefix,
+		new(sync.Mutex),
+		map[chan pkg.Event]struct{}{},
+		make(chan struct{}),
+		false,
+	}
 }
 
 // Next returns a channel which will emit an Event as soon as one of interest occurs
 func (es *etcdEventStream) Next(stop chan struct{}) chan pkg.Event {
-	evchan := make(chan pkg.Event)
+	es.l.Lock()
+	evchan := make(chan pkg.Event, 1024)
+	es.listeners[evchan] = struct{}{}
+	es.l.Unlock()
+
 	go func() {
 		for {
 			select {
 			case <-stop:
-				return
-			default:
-			}
-
-			res := watch(es.etcd, path.Join(es.rootPrefix, jobPrefix), stop)
-			if ev, ok := parse(res, es.rootPrefix); ok {
-				evchan <- ev
-				return
+				es.l.Lock()
+				delete(es.listeners, evchan)
+				if len(es.listeners) == 0 && es.running {
+					es.stop <- struct{}{}
+				}
+				es.l.Unlock()
+				for _ = range evchan {
+				}
 			}
 		}
-
 	}()
 
+	es.l.Lock()
+	if len(es.listeners) > 0 && !es.running {
+		go es.eventListener()
+	}
+	es.l.Unlock()
+
 	return evchan
+}
+
+func (es *etcdEventStream) eventListener() {
+	es.l.Lock()
+	es.running = true
+	es.l.Unlock()
+	for {
+		select {
+		case <-es.stop:
+			goto BREAK
+		default:
+		}
+
+		res := watch(es.etcd, path.Join(es.rootPrefix, jobPrefix), es.stop)
+		if ev, ok := parse(res, es.rootPrefix); ok {
+			for ch, _ := range es.listeners {
+				ch <- ev
+			}
+			goto BREAK
+		}
+	}
+
+BREAK:
+	es.l.Lock()
+	es.running = false
+	es.l.Unlock()
 }
 
 func parse(res *etcd.Result, prefix string) (ev pkg.Event, ok bool) {
