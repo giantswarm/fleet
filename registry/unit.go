@@ -50,7 +50,11 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 }
 
 // getUnitByHash retrieves from the Registry the Unit associated with the given Hash
-func (r *EtcdRegistry) getUnitByHash(hash unit.Hash) *unit.UnitFile {
+func (r *EtcdRegistry) getUnitByHash(hash unit.Hash, jobName string) *unit.UnitFile {
+	if unitFile := unitFileCache.get(hash, jobName); unitFile != nil {
+		return unitFile
+	}
+
 	req := etcd.Get{
 		Key:       r.hashedUnitPath(hash),
 		Recursive: true,
@@ -74,6 +78,7 @@ func (r *EtcdRegistry) getUnitByHash(hash unit.Hash) *unit.UnitFile {
 		return nil
 	}
 
+	unitFileCache.cache(hash, jobName, u)
 	return u
 }
 

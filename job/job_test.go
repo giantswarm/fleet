@@ -445,6 +445,27 @@ func TestInstanceUnitPrintf(t *testing.T) {
 	}
 }
 
+func TestNewUnitNameInfoAppLbRegister(t *testing.T) {
+	u := unit.NewUnitNameInfo("app-private-lb-register@2.service")
+	if u == nil {
+		t.Fatal("NewNamedUnit returned nil - aborting")
+	}
+	for _, tt := range []struct {
+		in   string
+		want string
+	}{
+		{"%n", "app-private-lb-register@2.service"},
+		{"%N", "app-private-lb-register@2"},
+		{"%p", "app-private-lb-register"},
+		{"%i", "2"},
+	} {
+		got := unitPrintf(tt.in, *u)
+		if got != tt.want {
+			t.Errorf("Replacement of %q failed: got %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 func TestParseJobState(t *testing.T) {
 	tests := []struct {
 		in  string

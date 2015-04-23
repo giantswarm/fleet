@@ -18,10 +18,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/rakyll/globalconf"
 
@@ -67,6 +70,7 @@ func main() {
 	cfgset.String("public_ip", "", "IP address that fleet machine should publish")
 	cfgset.String("metadata", "", "List of key-value metadata to assign to the fleet machine")
 	cfgset.String("agent_ttl", agent.DefaultTTL, "TTL in seconds of fleet machine state in etcd")
+	cfgset.String("unit_state_ttl", agent.DefaultUnitStateTTL, "TTL in seconds of unit state in etcd")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
 
@@ -108,7 +112,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	writeState := func() {
+	writeState := func(out io.Writer) {
 		log.Infof("Dumping server state")
 
 		encoded, err := json.Marshal(srv)
@@ -117,21 +121,36 @@ func main() {
 			return
 		}
 
-		if _, err := os.Stdout.Write(encoded); err != nil {
+		if _, err := out.Write(encoded); err != nil {
 			log.Errorf("Failed to dump server state: %v", err)
 			return
 		}
 
-		os.Stdout.Write([]byte("\n"))
+		out.Write([]byte("\n"))
 
 		log.Debugf("Finished dumping server state")
+	}
+
+	writeStateFile := func() {
+		tempFile, err := ioutil.TempFile("", fmt.Sprintf("fleetd-state-%d-%d.json", os.Getpid(), time.Now().Unix()))
+		if err != nil {
+			log.Errorf("Failed to create temporary file")
+			return
+		}
+		defer tempFile.Close()
+		writeState(tempFile)
+	}
+
+	writeStateStdout := func() {
+		writeState(os.Stdout)
 	}
 
 	signals := map[os.Signal]func(){
 		syscall.SIGHUP:  reconfigure,
 		syscall.SIGTERM: shutdown,
 		syscall.SIGINT:  shutdown,
-		syscall.SIGUSR1: writeState,
+		syscall.SIGUSR1: writeStateStdout,
+		syscall.SIGUSR2: writeStateFile,
 	}
 
 	listenForSignals(signals)
@@ -179,6 +198,7 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		PublicIP:                (*flagset.Lookup("public_ip")).Value.(flag.Getter).Get().(string),
 		RawMetadata:             (*flagset.Lookup("metadata")).Value.(flag.Getter).Get().(string),
 		AgentTTL:                (*flagset.Lookup("agent_ttl")).Value.(flag.Getter).Get().(string),
+		UnitStateTTL:            (*flagset.Lookup("unit_state_ttl")).Value.(flag.Getter).Get().(string),
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),
 	}
