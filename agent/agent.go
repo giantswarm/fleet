@@ -104,7 +104,7 @@ func (a *Agent) unloadUnit(unitName string) {
 	a.registry.ClearUnitHeartbeat(unitName)
 	a.cache.dropTargetState(unitName)
 
-	a.um.TriggerStop(unitName)
+	a.um.Stop(unitName)
 
 	a.uGen.Unsubscribe(unitName)
 
