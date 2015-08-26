@@ -29,6 +29,7 @@ import (
 )
 
 const numPublishers = 5
+const DefaultUnitStateTTL = "300s"
 
 func NewUnitStatePublisher(reg registry.Registry, mach machine.Machine, ttl time.Duration) *UnitStatePublisher {
 	return &UnitStatePublisher{
@@ -71,12 +72,19 @@ type UnitStatePublisher struct {
 // them to the Registry every 5s. Heartbeat objects are also published as they
 // are received on the channel.
 func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeat, stop chan bool) {
+	var publishPeriod time.Duration
+	if p.ttl > 30*time.Second {
+		publishPeriod = p.ttl - 10*time.Second
+	} else {
+		publishPeriod = p.ttl / 2
+	}
+
 	go func() {
 		for {
 			select {
 			case <-stop:
 				return
-			case <-p.clock.After(p.ttl / 2):
+			case <-p.clock.After(publishPeriod):
 				p.cacheMutex.Lock()
 				for name, us := range p.cache {
 					go p.queueForPublish(name, us)

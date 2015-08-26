@@ -75,6 +75,7 @@ func main() {
 	cfgset.String("public_ip", "", "IP address that fleet machine should publish")
 	cfgset.String("metadata", "", "List of key-value metadata to assign to the fleet machine")
 	cfgset.String("agent_ttl", agent.DefaultTTL, "TTL in seconds of fleet machine state in etcd")
+	cfgset.String("unit_state_ttl", agent.DefaultUnitStateTTL, "TTL in seconds of unit state in etcd")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
 
@@ -187,6 +188,7 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		PublicIP:                (*flagset.Lookup("public_ip")).Value.(flag.Getter).Get().(string),
 		RawMetadata:             (*flagset.Lookup("metadata")).Value.(flag.Getter).Get().(string),
 		AgentTTL:                (*flagset.Lookup("agent_ttl")).Value.(flag.Getter).Get().(string),
+		UnitStateTTL:            (*flagset.Lookup("unit_state_ttl")).Value.(flag.Getter).Get().(string),
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),
 	}
