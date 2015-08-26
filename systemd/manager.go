@@ -130,10 +130,25 @@ func (m *systemdUnitManager) TriggerStart(name string) {
 	}
 }
 
-// TriggerStop asynchronously starts the unit identified by the given name.
+// Stop stops the unit identified by the given name.
+// This function blocks until the underlying unit is actually stopped.
+func (m *systemdUnitManager) Stop(name string) {
+	retChan := make(chan string)
+	m.stopUnit(name, retChan)
+
+	jobReply := <-retChan
+
+	log.Infof("stop job for unit %s result: %s", name, jobReply)
+}
+
+// TriggerStop asynchronously stops the unit identified by the given name.
 // This function does not block for the underlying unit to actually stop.
 func (m *systemdUnitManager) TriggerStop(name string) {
-	jobID, err := m.systemd.StopUnit(name, "replace", nil)
+	m.stopUnit(name, nil)
+}
+
+func (m *systemdUnitManager) stopUnit(name string, ch chan<- string) {
+	jobID, err := m.systemd.StopUnit(name, "replace", ch)
 	if err == nil {
 		log.Infof("Triggered systemd unit %s stop: job=%d", name, jobID)
 	} else {
