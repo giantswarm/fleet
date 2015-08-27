@@ -41,7 +41,7 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 	opts := &etcd.SetOptions{
 		PrevExist: etcd.PrevNoExist,
 	}
-	_, err = r.kAPI.Set(r.ctx(), key, val, opts)
+	_, err = r.kAPI.Set(r.ctx(), key, json, opts)
 	// unit is already stored
 	if isEtcdError(err, etcd.ErrorCodeNodeExist) {
 		// TODO(jonboulle): verify more here?
