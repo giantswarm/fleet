@@ -16,9 +16,11 @@ package engine
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/log"
+	"github.com/coreos/fleet/udplogger"
 )
 
 const (
@@ -50,18 +52,22 @@ type Reconciler struct {
 func (r *Reconciler) Reconcile(e *Engine, stop chan struct{}) {
 	log.Debugf("Polling Registry for actionable work")
 
+	s := time.Now()
 	clust, err := e.clusterState()
+	udplogger.Logln("engine:clusterState() took", time.Now().Sub(s).Seconds())
 	if err != nil {
 		log.Errorf("Failed getting current cluster state: %v", err)
 		return
 	}
 
+	s = time.Now()
 	for t := range r.calculateClusterTasks(clust, stop) {
 		err = doTask(t, e)
 		if err != nil {
 			log.Errorf("Failed resolving task: task=%s err=%v", t, err)
 		}
 	}
+	udplogger.Logln("engine:taskExecution took", time.Now().Sub(s).Seconds())
 }
 
 func (r *Reconciler) calculateClusterTasks(clust *clusterState, stopchan chan struct{}) (taskchan chan *task) {
