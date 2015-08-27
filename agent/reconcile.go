@@ -24,11 +24,12 @@ import (
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/pkg"
 	"github.com/coreos/fleet/registry"
+	"github.com/coreos/fleet/udplogger"
 )
 
 const (
 	// time between triggering reconciliation routine
-	reconcileInterval = 5 * time.Second
+	reconcileInterval = 10 * time.Second
 )
 
 func NewReconciler(reg registry.Registry, rStream pkg.EventStream) *AgentReconciler {
@@ -68,20 +69,26 @@ func (ar *AgentReconciler) Run(a *Agent, stop chan bool) {
 // Reconcile drives the local Agent's state towards the desired state
 // stored in the Registry.
 func (ar *AgentReconciler) Reconcile(a *Agent) {
+	s := time.Now()
 	dAgentState, err := desiredAgentState(a, ar.reg)
+	udplogger.Logln("agent:desiredAgentState() took", time.Now().Sub(s).Seconds())
 	if err != nil {
 		log.Errorf("Unable to determine agent's desired state: %v", err)
 		return
 	}
 
+	s = time.Now()
 	cAgentState, err := a.units()
+	udplogger.Logln("agent:units() took", time.Now().Sub(s).Seconds())
 	if err != nil {
 		log.Errorf("Unable to determine agent's current state: %v", err)
 		return
 	}
 
+	s = time.Now()
 	tasks := ar.calculateTasksForUnits(dAgentState, cAgentState)
 	ar.launchTasks(tasks, a)
+	udplogger.Logln("agent:calculateAndLaunchTasks() took", time.Now().Sub(s).Seconds())
 }
 
 // Purge attempts to unload all Units that have been loaded locally
