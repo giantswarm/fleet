@@ -74,7 +74,7 @@ func init() {
 
 func send(data string) {
 	if logger.enabled {
-		logger.udpConn.Write([]byte(fmt.Sprintf("%s: %s", logger.prefix, data)))
+		logger.udpConn.Write([]byte(fmt.Sprintf("%s %s: %s", logger.prefix, time.Now().String(), data)))
 	}
 }
 
