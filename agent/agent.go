@@ -24,6 +24,7 @@ import (
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/pkg"
 	"github.com/coreos/fleet/registry"
+	"github.com/coreos/fleet/udplogger"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -85,12 +86,14 @@ func (a *Agent) heartbeatJobs(ttl time.Duration, stop chan bool) {
 }
 
 func (a *Agent) reloadUnitFiles() error {
+	udplogger.Logln("systemd:ReloadUnitFiles")
 	return a.um.ReloadUnitFiles()
 }
 
 func (a *Agent) loadUnit(u *job.Unit) error {
 	a.cache.setTargetState(u.Name, job.JobStateLoaded)
 	a.uGen.Subscribe(u.Name)
+	udplogger.Logln("systemd:Load", u.Name)
 	return a.um.Load(u.Name, u.Unit)
 }
 
@@ -98,10 +101,11 @@ func (a *Agent) unloadUnit(unitName string) {
 	a.registry.ClearUnitHeartbeat(unitName)
 	a.cache.dropTargetState(unitName)
 
-	a.um.Stop(unitName)
-
+	udplogger.Logln("systemd:TriggerStop", unitName)
+	a.um.TriggerStop(unitName)
 	a.uGen.Unsubscribe(unitName)
 
+	udplogger.Logln("systemd:Unload", unitName)
 	a.um.Unload(unitName)
 }
 
@@ -111,6 +115,7 @@ func (a *Agent) startUnit(unitName string) {
 	machID := a.Machine.State().ID
 	a.registry.UnitHeartbeat(unitName, machID, a.ttl)
 
+	udplogger.Logln("systemd:TriggerStart", unitName)
 	a.um.TriggerStart(unitName)
 }
 
@@ -118,6 +123,7 @@ func (a *Agent) stopUnit(unitName string) {
 	a.cache.setTargetState(unitName, job.JobStateLoaded)
 	a.registry.ClearUnitHeartbeat(unitName)
 
+	udplogger.Logln("systemd:TriggerStop", unitName)
 	a.um.TriggerStop(unitName)
 }
 
