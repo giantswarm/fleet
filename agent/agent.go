@@ -17,6 +17,7 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/coreos/fleet/job"
@@ -40,11 +41,19 @@ type Agent struct {
 	Machine  machine.Machine
 	ttl      time.Duration
 
+	unitFileMux    map[string]*refCountedMux
+	unitFileMuxMux *sync.Mutex
+
 	cache *agentCache
 }
 
+type refCountedMux struct {
+	mu       *sync.Mutex
+	refcount int
+}
+
 func New(mgr unit.UnitManager, uGen *unit.UnitStateGenerator, reg registry.Registry, mach machine.Machine, ttl time.Duration) *Agent {
-	return &Agent{reg, mgr, uGen, mach, ttl, &agentCache{}}
+	return &Agent{reg, mgr, uGen, mach, ttl, map[string]*refCountedMux{}, new(sync.Mutex), &agentCache{}}
 }
 
 func (a *Agent) MarshalJSON() ([]byte, error) {
@@ -94,6 +103,8 @@ func (a *Agent) loadUnit(u *job.Unit) error {
 	a.cache.setTargetState(u.Name, job.JobStateLoaded)
 	a.uGen.Subscribe(u.Name)
 	udplogger.Logln("systemd:Load", u.Name)
+	a.aquireUnitFileLock(u.Name)
+	defer a.unlockUnitFile(u.Name)
 	return a.um.Load(u.Name, u.Unit)
 }
 
@@ -105,8 +116,23 @@ func (a *Agent) unloadUnit(unitName string) {
 	a.um.TriggerStop(unitName)
 	a.uGen.Unsubscribe(unitName)
 
-	udplogger.Logln("systemd:Unload", unitName)
-	a.um.Unload(unitName)
+	go func(unitName string) {
+		a.aquireUnitFileLock(unitName)
+		defer a.unlockUnitFile(unitName)
+
+		period := 100 * time.Millisecond
+
+		for retriesLeft := 50; retriesLeft > 0; retriesLeft-- {
+			us, err := a.um.GetUnitState(unitName)
+			if err == nil && (us.ActiveState == "inactive" || us.ActiveState == "failed") {
+				break
+			}
+			time.Sleep(period)
+		}
+
+		udplogger.Logln("systemd:Unload", unitName)
+		a.um.Unload(unitName)
+	}(unitName)
 }
 
 func (a *Agent) startUnit(unitName string) {
@@ -176,4 +202,29 @@ func (a *Agent) units() (unitStates, error) {
 	}
 
 	return states, nil
+}
+
+func (a *Agent) aquireUnitFileLock(unitName string) {
+	a.unitFileMuxMux.Lock()
+	l, exists := a.unitFileMux[unitName]
+	if !exists {
+		l = &refCountedMux{new(sync.Mutex), 0}
+		a.unitFileMux[unitName] = l
+	}
+	l.refcount++
+	a.unitFileMuxMux.Unlock()
+	l.mu.Lock()
+}
+
+func (a *Agent) unlockUnitFile(unitName string) {
+	a.unitFileMuxMux.Lock()
+	defer a.unitFileMuxMux.Unlock()
+	l, exists := a.unitFileMux[unitName]
+	if !exists {
+		return
+	}
+	l.refcount--
+	if l.refcount == 0 {
+		delete(a.unitFileMux, unitName)
+	}
 }
