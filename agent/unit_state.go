@@ -15,7 +15,8 @@
 package agent
 
 import (
-	"encoding/json"
+	//"encoding/json"
+	json "github.com/pquerna/ffjson/ffjson"
 	"reflect"
 	"sync"
 	"time"
@@ -142,7 +143,7 @@ func (p *UnitStatePublisher) MarshalJSON() ([]byte, error) {
 		ToPublish: p.toPublishStates,
 	}
 	p.cacheMutex.Unlock()
-
+	// FIXME: Hector
 	return json.Marshal(data)
 }
 

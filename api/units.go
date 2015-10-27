@@ -15,9 +15,10 @@
 package api
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"errors"
 	"fmt"
+	json "github.com/pquerna/ffjson/ffjson"
 	"net/http"
 	"path"
 	"strings"
@@ -73,9 +74,10 @@ func (ur *unitsResource) set(rw http.ResponseWriter, req *http.Request, item str
 	}
 
 	var su schema.Unit
-	dec := json.NewDecoder(req.Body)
-	err := dec.Decode(&su)
-	if err != nil {
+	// FIXME: Hector
+	//dec := json.NewDecoder(req.Body)
+	//err := dec.Decode(&su)
+	if err := json.NewDecoder().DecodeReader(req.Body, &su); err != nil {
 		sendError(rw, http.StatusBadRequest, fmt.Errorf("unable to decode body: %v", err))
 		return
 	}

@@ -15,8 +15,9 @@
 package agent
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
+	json "github.com/pquerna/ffjson/ffjson"
 	"reflect"
 	"sort"
 	"sync"
@@ -129,10 +130,10 @@ func TestPruneCache(t *testing.T) {
 	}{
 		{
 			cacheBefore: map[string]*unit.UnitState{
-				"foo.service": &unit.UnitState{},
+				"foo.service": {},
 			},
 			cacheAfter: map[string]*unit.UnitState{
-				"foo.service": &unit.UnitState{},
+				"foo.service": {},
 			},
 		},
 
@@ -144,11 +145,11 @@ func TestPruneCache(t *testing.T) {
 		},
 		{
 			cacheBefore: map[string]*unit.UnitState{
-				"foo.service": &unit.UnitState{},
+				"foo.service": {},
 				"bar.service": nil,
 			},
 			cacheAfter: map[string]*unit.UnitState{
-				"foo.service": &unit.UnitState{},
+				"foo.service": {},
 			},
 		},
 	}
@@ -168,28 +169,28 @@ func TestPruneCache(t *testing.T) {
 
 func TestPurge(t *testing.T) {
 	cache := map[string]*unit.UnitState{
-		"foo.service": &unit.UnitState{
+		"foo.service": {
 			UnitName:    "foo.service",
 			ActiveState: "loaded",
 		},
 		"bar.service": nil,
 	}
 	initStates := []unit.UnitState{
-		unit.UnitState{
+		{
 			UnitName:    "foo.service",
 			ActiveState: "active",
 		},
-		unit.UnitState{
+		{
 			UnitName:    "bar.service",
 			ActiveState: "loaded",
 		},
-		unit.UnitState{
+		{
 			UnitName:    "baz.service",
 			ActiveState: "inactive",
 		},
 	}
 	want := []*unit.UnitState{
-		&unit.UnitState{
+		{
 			UnitName:    "baz.service",
 			ActiveState: "inactive",
 		},
@@ -229,7 +230,7 @@ func TestDefaultPublisher(t *testing.T) {
 			},
 			nil,
 			[]*unit.UnitState{
-				&unit.UnitState{
+				{
 					UnitName:    "foo.service",
 					ActiveState: "active",
 					MachineID:   "xyz",
@@ -251,7 +252,7 @@ func TestDefaultPublisher(t *testing.T) {
 			"foo.service",
 			nil,
 			[]unit.UnitState{
-				unit.UnitState{
+				{
 					UnitName:    "foo.service",
 					ActiveState: "active",
 				},
@@ -311,7 +312,7 @@ func TestUnitStatePublisherRunTiming(t *testing.T) {
 		clock:           fclock,
 	}
 	usp.cache = map[string]*unit.UnitState{
-		"foo.service": &unit.UnitState{
+		"foo.service": {
 			UnitName:    "foo.service",
 			ActiveState: "active",
 			MachineID:   "XXX",
@@ -345,7 +346,7 @@ func TestUnitStatePublisherRunTiming(t *testing.T) {
 	// now up to the publish interval
 	fclock.Advance(4 * time.Second)
 	want = []*unit.UnitState{
-		&unit.UnitState{
+		{
 			UnitName:    "foo.service",
 			ActiveState: "active",
 			MachineID:   "XXX",
@@ -389,7 +390,7 @@ func TestUnitStatePublisherRunTiming(t *testing.T) {
 	// tick way past the publish interval
 	fclock.Advance(time.Hour)
 	want = []*unit.UnitState{
-		&unit.UnitState{
+		{
 			UnitName:    "foo.service",
 			ActiveState: "active",
 			MachineID:   "XXX",
@@ -505,7 +506,7 @@ func TestUnitStatePublisherRunQueuing(t *testing.T) {
 	usp.cacheMutex.Lock()
 	// flush the cache
 	usp.cache = map[string]*unit.UnitState{
-		"foo.service": &unit.UnitState{
+		"foo.service": {
 			UnitName:    "foo.service",
 			ActiveState: "active",
 		},
@@ -534,7 +535,7 @@ func TestUnitStatePublisherRunQueuing(t *testing.T) {
 	usp.cacheMutex.RLock()
 	got = usp.cache
 	wcache = map[string]*unit.UnitState{
-		"foo.service": &unit.UnitState{
+		"foo.service": {
 			UnitName:    "foo.service",
 			ActiveState: "inactive",
 			MachineID:   "some_id",
@@ -637,12 +638,12 @@ func TestUnitStatePublisherRunWithDelays(t *testing.T) {
 	mu.Unlock()
 
 	wtps := map[string]*unit.UnitState{
-		"foo.service": &unit.UnitState{
+		"foo.service": {
 			UnitName:    "foo.service",
 			ActiveState: "inactive",
 		},
-		"bar.service": &unit.UnitState{},
-		"baz.service": &unit.UnitState{},
+		"bar.service": {},
+		"baz.service": {},
 	}
 
 	usp.toPublishMutex.RLock()
@@ -735,7 +736,7 @@ func TestQueueForPublish(t *testing.T) {
 		t.Fatal("did not receive on toPublish channel as expected")
 	}
 	want := map[string]*unit.UnitState{
-		"foo.service": &unit.UnitState{
+		"foo.service": {
 			UnitName:    "foo.service",
 			ActiveState: "active",
 		},
@@ -758,19 +759,19 @@ func TestMarshalJSON(t *testing.T) {
 
 	usp = NewUnitStatePublisher(&registry.FakeRegistry{}, &machine.FakeMachine{}, 0)
 	usp.cache = map[string]*unit.UnitState{
-		"foo.service": &unit.UnitState{
+		"foo.service": {
 			UnitName:    "foo.service",
 			ActiveState: "active",
 			MachineID:   "asdf",
 		},
-		"bar.service": &unit.UnitState{
+		"bar.service": {
 			UnitName:    "bar.service",
 			ActiveState: "inactive",
 			MachineID:   "asdf",
 		},
 	}
 	usp.toPublishStates = map[string]*unit.UnitState{
-		"woof.service": &unit.UnitState{
+		"woof.service": {
 			UnitName:    "woof.service",
 			ActiveState: "active",
 			MachineID:   "asdf",

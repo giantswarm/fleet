@@ -15,8 +15,9 @@
 package agent
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
+	json "github.com/pquerna/ffjson/ffjson"
 	"time"
 
 	"github.com/coreos/fleet/job"
@@ -52,6 +53,7 @@ func (a *Agent) MarshalJSON() ([]byte, error) {
 	}{
 		Cache: a.cache,
 	}
+	// FIXME: Hector
 	return json.Marshal(data)
 }
 

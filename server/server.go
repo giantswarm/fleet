@@ -15,8 +15,9 @@
 package server
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"errors"
+	json "github.com/pquerna/ffjson/ffjson"
 	"net/http"
 	"time"
 

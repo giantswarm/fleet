@@ -11,9 +11,10 @@ package schema
 
 import (
 	"bytes"
-	"encoding/json"
+	//"encoding/json"
 	"errors"
 	"fmt"
+	json "github.com/pquerna/ffjson/ffjson"
 	"io"
 	"net/http"
 	"net/url"
@@ -200,7 +201,7 @@ func (c *MachinesListCall) Do() (*MachinePage, error) {
 		return nil, err
 	}
 	var ret *MachinePage
-	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
+	if err := json.NewDecoder().DecodeReader(res.Body, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil
@@ -291,7 +292,7 @@ func (c *UnitStateListCall) Do() (*UnitStatePage, error) {
 		return nil, err
 	}
 	var ret *UnitStatePage
-	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
+	if err := json.NewDecoder().DecodeReader(res.Body, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil
@@ -432,7 +433,7 @@ func (c *UnitsGetCall) Do() (*Unit, error) {
 		return nil, err
 	}
 	var ret *Unit
-	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
+	if err := json.NewDecoder().DecodeReader(res.Body, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil
@@ -509,7 +510,7 @@ func (c *UnitsListCall) Do() (*UnitPage, error) {
 		return nil, err
 	}
 	var ret *UnitPage
-	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
+	if err := json.NewDecoder().DecodeReader(res.Body, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil

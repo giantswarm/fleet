@@ -15,9 +15,10 @@
 package main
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"flag"
 	"fmt"
+	json "github.com/pquerna/ffjson/ffjson"
 	"os"
 	"os/signal"
 	"syscall"

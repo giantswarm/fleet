@@ -15,8 +15,9 @@
 package api
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
+	json "github.com/pquerna/ffjson/ffjson"
 	"net/http/httptest"
 	"reflect"
 )
@@ -33,9 +34,9 @@ func assertErrorResponse(rr *httptest.ResponseRecorder, code int) error {
 	}
 
 	var eresp errorResponse
-	dec := json.NewDecoder(rr.Body)
-	err := dec.Decode(&eresp)
-	if err != nil {
+	//err := json.NewDecoder()rr.Body)
+	//err := dec.Decode(&eresp)
+	if err := json.NewDecoder().DecodeReader(rr.Body, &eresp); err != nil {
 		return fmt.Errorf("unable to decode error entity in body: %v", err)
 	}
 

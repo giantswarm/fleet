@@ -15,7 +15,8 @@
 package agent
 
 import (
-	"encoding/json"
+	//"encoding/json"
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/job"
 )
@@ -29,6 +30,7 @@ func (ac *agentCache) MarshalJSON() ([]byte, error) {
 	data := ds{
 		TargetStates: map[string]job.JobState(*ac),
 	}
+	// FIXME: Hector
 	return json.Marshal(data)
 }
 
