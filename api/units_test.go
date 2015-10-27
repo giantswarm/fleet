@@ -16,8 +16,9 @@ package api
 
 import (
 	"bytes"
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
+	json "github.com/pquerna/ffjson/ffjson"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -222,14 +223,14 @@ func TestUnitsDestroy(t *testing.T) {
 	}{
 		// Deletion of an existing unit should succeed
 		{
-			init:      []job.Job{job.Job{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")}},
+			init:      []job.Job{{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")}},
 			arg:       "XXX.service",
 			code:      http.StatusNoContent,
 			remaining: []string{},
 		},
 		// Deletion of a nonexistent unit should fail
 		{
-			init:      []job.Job{job.Job{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")}},
+			init:      []job.Job{{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")}},
 			arg:       "YYY.service",
 			code:      http.StatusNotFound,
 			remaining: []string{"XXX.service"},
@@ -295,7 +296,7 @@ func TestUnitsSetDesiredState(t *testing.T) {
 	}{
 		// Modify the desired State of an existing Job
 		{
-			initJobs:    []job.Job{job.Job{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")}},
+			initJobs:    []job.Job{{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")}},
 			initStates:  map[string]job.JobState{"XXX.service": "inactive"},
 			item:        "XXX.service",
 			arg:         schema.Unit{Name: "XXX.service", DesiredState: "launched"},
@@ -311,7 +312,7 @@ func TestUnitsSetDesiredState(t *testing.T) {
 				Name:         "YYY.service",
 				DesiredState: "loaded",
 				Options: []*schema.UnitOption{
-					&schema.UnitOption{Section: "Service", Name: "Foo", Value: "Baz"},
+					{Section: "Service", Name: "Foo", Value: "Baz"},
 				},
 			},
 			code:        http.StatusCreated,
@@ -333,8 +334,8 @@ func TestUnitsSetDesiredState(t *testing.T) {
 		// Referencing a Unit where the name is inconsistent with the path should fail
 		{
 			initJobs: []job.Job{
-				job.Job{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")},
-				job.Job{Name: "YYY.service", Unit: newUnit(t, "[Service]\nFoo=Baz")},
+				{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")},
+				{Name: "YYY.service", Unit: newUnit(t, "[Service]\nFoo=Baz")},
 			},
 			initStates: map[string]job.JobState{
 				"XXX.service": "inactive",
@@ -354,8 +355,8 @@ func TestUnitsSetDesiredState(t *testing.T) {
 		// Referencing a Unit where the name is omitted should substitute the name from the path
 		{
 			initJobs: []job.Job{
-				job.Job{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")},
-				job.Job{Name: "YYY.service", Unit: newUnit(t, "[Service]\nFoo=Baz")},
+				{Name: "XXX.service", Unit: newUnit(t, "[Service]\nFoo=Bar")},
+				{Name: "YYY.service", Unit: newUnit(t, "[Service]\nFoo=Baz")},
 			},
 			initStates: map[string]job.JobState{
 				"XXX.service": "inactive",
@@ -374,7 +375,7 @@ func TestUnitsSetDesiredState(t *testing.T) {
 		// Attempts to load/launch a template unit should fail
 		{
 			initJobs: []job.Job{
-				job.Job{Name: "XXX@.service", Unit: newUnit(t, "[Service]\nFoo=Bar")},
+				{Name: "XXX@.service", Unit: newUnit(t, "[Service]\nFoo=Bar")},
 			},
 			initStates: map[string]job.JobState{
 				"XXX@.service": "inactive",
@@ -583,7 +584,7 @@ func TestValidateOptions(t *testing.T) {
 		// Global by itself is OK
 		{
 			[]*schema.UnitOption{
-				&schema.UnitOption{
+				{
 					Section: "X-Fleet",
 					Name:    "Global",
 					Value:   "true",
@@ -594,7 +595,7 @@ func TestValidateOptions(t *testing.T) {
 		// Global with Peers/Conflicts no good
 		{
 			[]*schema.UnitOption{
-				&schema.UnitOption{
+				{
 					Section: "X-Fleet",
 					Name:    "Global",
 					Value:   "true",
@@ -605,7 +606,7 @@ func TestValidateOptions(t *testing.T) {
 		},
 		{
 			[]*schema.UnitOption{
-				&schema.UnitOption{
+				{
 					Section: "X-Fleet",
 					Name:    "Global",
 					Value:   "true",
@@ -616,7 +617,7 @@ func TestValidateOptions(t *testing.T) {
 		},
 		{
 			[]*schema.UnitOption{
-				&schema.UnitOption{
+				{
 					Section: "X-Fleet",
 					Name:    "Global",
 					Value:   "true",
@@ -629,7 +630,7 @@ func TestValidateOptions(t *testing.T) {
 		// Global with MachineID no good
 		{
 			[]*schema.UnitOption{
-				&schema.UnitOption{
+				{
 					Section: "X-Fleet",
 					Name:    "Global",
 					Value:   "true",
@@ -641,7 +642,7 @@ func TestValidateOptions(t *testing.T) {
 		{
 			[]*schema.UnitOption{
 				makeIDUO("abcdefghi"),
-				&schema.UnitOption{
+				{
 					Section: "X-Fleet",
 					Name:    "Global",
 					Value:   "true",

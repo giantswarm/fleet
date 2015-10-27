@@ -15,7 +15,8 @@
 package api
 
 import (
-	"encoding/json"
+	//"encoding/json"
+	json "github.com/pquerna/ffjson/ffjson"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
