@@ -15,12 +15,13 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"testing"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/client"
 	"github.com/coreos/fleet/registry"

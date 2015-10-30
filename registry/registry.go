@@ -15,8 +15,9 @@
 package registry
 
 import (
-	"encoding/json"
 	"fmt"
+
+	json "github.com/pquerna/ffjson/ffjson"
 )
 
 func marshal(obj interface{}) (string, error) {

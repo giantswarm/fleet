@@ -15,11 +15,12 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/log"
 )
