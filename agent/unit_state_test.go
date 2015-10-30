@@ -15,13 +15,14 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
 	"sync"
 	"testing"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/jonboulle/clockwork"
 

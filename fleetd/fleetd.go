@@ -15,7 +15,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +23,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/rakyll/globalconf"
 
