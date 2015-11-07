@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -39,12 +40,14 @@ import (
 
 const (
 	DefaultConfigFile = "/etc/fleet/fleet.conf"
+	DefaultMaxProcs = 2
 )
 
 func main() {
 	userset := flag.NewFlagSet("fleet", flag.ExitOnError)
 	printVersion := userset.Bool("version", false, "Print the version and exit")
 	cfgPath := userset.String("config", "", fmt.Sprintf("Path to config file. Fleet will look for a config at %s by default.", DefaultConfigFile))
+	maxProcs := userset.Int("max-procs", DefaultMaxProcs, "Specify the amount of max processors(cores) to be used by Go's runtime system")
 
 	err := userset.Parse(os.Args[1:])
 	if err == flag.ErrHelp {
@@ -63,6 +66,15 @@ func main() {
 	if *printVersion {
 		fmt.Println("fleetd version", version.Version)
 		os.Exit(0)
+	}
+
+	if *maxProcs > runtime.NumCPU() {
+		fmt.Println("Config option max_procs cannot be higher than the number of available cores in your machine")
+		os.Exit(1)
+	} else {
+		// Use the flag -max-procs to define the amount of GoMaxProcs to be running
+		runtime.GOMAXPROCS(*maxProcs)
+		log.Infof("GOMAXPROCS is set to: %d", *maxProcs)
 	}
 
 	log.Infof("Starting fleetd version %v", version.Version)
