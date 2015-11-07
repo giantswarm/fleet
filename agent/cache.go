@@ -15,7 +15,7 @@
 package agent
 
 import (
-	"encoding/json"
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/job"
 )

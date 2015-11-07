@@ -15,9 +15,10 @@
 package lease
 
 import (
-	"encoding/json"
 	"path"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	etcd "github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/etcd/client"
 	"github.com/coreos/fleet/Godeps/_workspace/src/golang.org/x/net/context"

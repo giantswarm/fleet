@@ -15,12 +15,13 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"path"
 	"strings"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/client"
 	"github.com/coreos/fleet/job"
@@ -73,9 +74,7 @@ func (ur *unitsResource) set(rw http.ResponseWriter, req *http.Request, item str
 	}
 
 	var su schema.Unit
-	dec := json.NewDecoder(req.Body)
-	err := dec.Decode(&su)
-	if err != nil {
+	if err := json.NewDecoder().DecodeReader(req.Body, &su); err != nil {
 		sendError(rw, http.StatusBadRequest, fmt.Errorf("unable to decode body: %v", err))
 		return
 	}

@@ -15,10 +15,11 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/log"
