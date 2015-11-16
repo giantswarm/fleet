@@ -501,19 +501,36 @@ func (nc *nspawnCluster) DestroyMember(m Member) error {
 }
 
 func (nc *nspawnCluster) systemdReload() error {
+	start := time.Now()
+	log.Printf("Entering in systemdReload systemdReload")
 	conn, err := dbus.New()
 	if err != nil {
 		return err
 	}
+	elapsed := time.Since(start)
+	log.Printf("Timing systemdReload dbus.New %s", elapsed)
+
+	start = time.Now()
 	conn.Reload()
+	log.Printf("Getting out in systemdReload systemdReload")
+
+	elapsed = time.Since(start)
+  log.Printf("Timing systemdReload conn.Reload %s", elapsed)
 	return nil
 }
 
 func (nc *nspawnCluster) systemd(unitName, exec string) error {
+	start := time.Now()
+
+	log.Printf("Entering in systemd %s: %s", unitName, exec)
 	conn, err := dbus.New()
 	if err != nil {
 		return err
 	}
+	elapsed := time.Since(start)
+	log.Printf("Timing systemd dbus.New %s", elapsed)
+
+	start = time.Now()
 
 	props := []dbus.Property{
 		dbus.PropExecStart(strings.Split(exec, " "), false),
@@ -528,6 +545,12 @@ func (nc *nspawnCluster) systemd(unitName, exec string) error {
 	}
 	<-res1
 
+	elapsed = time.Since(start)
+	log.Printf("Timing systemd StartTransientUnit %s", elapsed)
+
+	log.Printf("Started a transient unit %s: %s", unitName, exec)
+
+	start = time.Now()
 	res2 := make(chan string)
 	_, err = conn.StartUnit(unitName, "replace", res2)
 	if err != nil {
@@ -536,6 +559,11 @@ func (nc *nspawnCluster) systemd(unitName, exec string) error {
 	}
 
 	<-res2
+
+	elapsed = time.Since(start)
+	log.Printf("Timing systemd StartUnit %s", elapsed)
+	log.Printf("Getting out of systemd %s: %s", unitName, exec)
+
 	return nil
 }
 
