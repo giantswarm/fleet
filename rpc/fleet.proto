@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package rpc;
 
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.goproto_enum_prefix_all) = true;
+
 service Registry {
 // agents should request only the locally scheduled jobs
 	rpc GetScheduledUnits(UnitFilter) returns (ScheduledUnits);
@@ -72,7 +76,7 @@ message UnscheduleUnitRequest {
 message SaveUnitStateRequest {
 	string    name  = 1;
 	UnitState state = 2;
-	int32     ttl   = 3;
+	int32     ttl   = 3 [(gogoproto.customname) = "TTL"];
 	// machine 
 }
 

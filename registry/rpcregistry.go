@@ -175,7 +175,7 @@ func (r *RPCRegistry) SaveUnitState(name string, unitState *unit.UnitState, ttl 
 	r.getClient().SaveUnitState(context.Background(), &rpc.SaveUnitStateRequest{
 		Name:  name,
 		State: unitState.ToPB(),
-		Ttl:   int32(ttl.Seconds()),
+		TTL:   int32(ttl.Seconds()),
 	})
 }
 

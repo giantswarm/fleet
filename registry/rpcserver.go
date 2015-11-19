@@ -13,8 +13,9 @@ import (
 	"github.com/coreos/fleet/unit"
 	"google.golang.org/grpc"
 
-	sdunit "github.com/coreos/go-systemd/unit"
 	"strings"
+
+	sdunit "github.com/coreos/go-systemd/unit"
 )
 
 type machineChan chan []string
@@ -133,7 +134,7 @@ func (s *rpcserver) RemoveUnitState(ctx context.Context, name *pb.UnitName) (*pb
 }
 
 func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequest) (*pb.GenericReply, error) {
-	s.etcdRegistry.SaveUnitState(req.Name, rpcUnitStateToExtUnitState(req.State), time.Duration(req.Ttl)*time.Second)
+	s.etcdRegistry.SaveUnitState(req.Name, rpcUnitStateToExtUnitState(req.State), time.Duration(req.TTL)*time.Second)
 	return &pb.GenericReply{}, nil
 }
 

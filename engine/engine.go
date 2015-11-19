@@ -83,7 +83,9 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 		e.lease = l
 
 		go func() {
-			e.leaderNotifier <- e.lease.MachineID()
+			if e.lease != nil {
+				e.leaderNotifier <- e.lease.MachineID()
+			}
 		}()
 
 		if !isLeader(e.lease, machID) {

@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
-	pb "github.com/coreos/fleet/rpc"
 	"github.com/coreos/fleet/pkg"
+	pb "github.com/coreos/fleet/rpc"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -104,16 +104,16 @@ type Unit struct {
 
 func (u *Unit) ToPB() *pb.Unit {
 	return &pb.Unit{
-		Name:        u.Name,
-		Unit:        u.Unit.ToPB(),
+		Name:  u.Name,
+		Unit:  u.Unit.ToPB(),
 		State: u.TargetState.ToPB(),
 	}
 }
 
 func (u *ScheduledUnit) ToPB() *pb.ScheduledUnit {
 	unit := &pb.ScheduledUnit{
-		Name: u.Name,
-		State: u.State.ToPB(),
+		Name:    u.Name,
+		State:   u.State.ToPB(),
 		Machine: u.TargetMachineID,
 	}
 	return unit
