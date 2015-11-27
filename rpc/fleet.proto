@@ -10,7 +10,7 @@ service Registry {
 // agents should request only the locally scheduled jobs
 	rpc GetScheduledUnits(UnitFilter) returns (ScheduledUnits);
 	// should _never_ be used? fleetctl only ?
-	rpc GetScheduledUnit(UnitName) returns (ScheduledUnit);
+	rpc GetScheduledUnit(UnitName) returns (MaybeScheduledUnit);
 	// should _never_ be used ?
 	rpc GetUnit(UnitName) returns (MaybeUnit);
 	rpc GetUnits(UnitFilter) returns (Units); // => global status ? 
@@ -58,9 +58,7 @@ message UnitStateFilter {
 }
 
 message UnitFilter {
-	string name               = 1;
-	TargetState current_state = 2;
-	string machine            = 3;
+	string machine            = 1;
 }
 
 message ScheduleUnitRequest {
@@ -83,7 +81,7 @@ message SaveUnitStateRequest {
 message Heartbeat {
 	string name    = 1;
 	string machine = 2;
-	int32  ttl     = 3;
+	int32     ttl   = 3 [(gogoproto.customname) = "TTL"];
 }
 
 message GenericReply {
@@ -92,7 +90,7 @@ message GenericReply {
 }
 
 message Units {
-	repeated Unit units = 1;
+	repeated Unit units = 1 [(gogoproto.nullable) = false];
 }
 
 message UnitStates {
@@ -109,12 +107,12 @@ message UnitState {
 }
 
 message ScheduledUnits {
-	repeated ScheduledUnit units = 1;
+	repeated ScheduledUnit units = 1 [(gogoproto.nullable) = false];
 }
 
 message ScheduledUnit {
 	string      name    = 1;
-	TargetState state   = 2;
+	TargetState current_state   = 2;
 	string      machine = 3;
 }
 
@@ -124,8 +122,16 @@ message UnitName {
 
 message Unit {
 	string      name         = 1;
-	UnitFile    unit         = 2;
-	TargetState state = 3;
+	UnitFile    unit         = 2 [(gogoproto.nullable) = false];
+	TargetState desired_state = 3 ;
+}
+
+message MaybeScheduledUnit {
+	oneof is_scheduled {
+		ScheduledUnit unit = 1;
+		NotFound notfound = 2;
+	}
+
 }
 
 message MaybeUnit {
@@ -140,7 +146,7 @@ message NotFound {
 }
 
 message UnitFile {
-	repeated UnitOption unit_options = 1;
+	repeated UnitOption unit_options = 1 [(gogoproto.nullable) = false];
 }
 
 message UnitOption {

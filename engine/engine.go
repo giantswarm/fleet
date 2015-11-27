@@ -35,7 +35,7 @@ const (
 
 type Engine struct {
 	rec       *Reconciler
-	registry  registry.Registry
+	registry  *registry.RPCRegistry
 	cRegistry registry.ClusterRegistry
 	lManager  lease.Manager
 	machine   machine.Machine
@@ -123,7 +123,7 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 		}
 	}
 
-	rec := pkg.NewPeriodicReconciler(ival, reconcile)
+	rec := pkg.NewPeriodicReconciler(ival, reconcile, e.registry)
 	rec.Run(stop)
 }
 

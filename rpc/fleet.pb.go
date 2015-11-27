@@ -25,6 +25,7 @@
 		ScheduledUnit
 		UnitName
 		Unit
+		MaybeScheduledUnit
 		MaybeUnit
 		NotFound
 		UnitFile
@@ -102,9 +103,7 @@ func (m *UnitStateFilter) Reset()      { *m = UnitStateFilter{} }
 func (*UnitStateFilter) ProtoMessage() {}
 
 type UnitFilter struct {
-	Name         string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	CurrentState TargetState `protobuf:"varint,2,opt,name=current_state,proto3,enum=rpc.TargetState" json:"current_state,omitempty"`
-	Machine      string      `protobuf:"bytes,3,opt,name=machine,proto3" json:"machine,omitempty"`
+	Machine string `protobuf:"bytes,1,opt,name=machine,proto3" json:"machine,omitempty"`
 }
 
 func (m *UnitFilter) Reset()      { *m = UnitFilter{} }
@@ -145,7 +144,7 @@ func (m *SaveUnitStateRequest) GetState() *UnitState {
 type Heartbeat struct {
 	Name    string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Machine string `protobuf:"bytes,2,opt,name=machine,proto3" json:"machine,omitempty"`
-	Ttl     int32  `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	TTL     int32  `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
 }
 
 func (m *Heartbeat) Reset()      { *m = Heartbeat{} }
@@ -158,13 +157,13 @@ func (m *GenericReply) Reset()      { *m = GenericReply{} }
 func (*GenericReply) ProtoMessage() {}
 
 type Units struct {
-	Units []*Unit `protobuf:"bytes,1,rep,name=units" json:"units,omitempty"`
+	Units []Unit `protobuf:"bytes,1,rep,name=units" json:"units"`
 }
 
 func (m *Units) Reset()      { *m = Units{} }
 func (*Units) ProtoMessage() {}
 
-func (m *Units) GetUnits() []*Unit {
+func (m *Units) GetUnits() []Unit {
 	if m != nil {
 		return m.Units
 	}
@@ -198,13 +197,13 @@ func (m *UnitState) Reset()      { *m = UnitState{} }
 func (*UnitState) ProtoMessage() {}
 
 type ScheduledUnits struct {
-	Units []*ScheduledUnit `protobuf:"bytes,1,rep,name=units" json:"units,omitempty"`
+	Units []ScheduledUnit `protobuf:"bytes,1,rep,name=units" json:"units"`
 }
 
 func (m *ScheduledUnits) Reset()      { *m = ScheduledUnits{} }
 func (*ScheduledUnits) ProtoMessage() {}
 
-func (m *ScheduledUnits) GetUnits() []*ScheduledUnit {
+func (m *ScheduledUnits) GetUnits() []ScheduledUnit {
 	if m != nil {
 		return m.Units
 	}
@@ -212,9 +211,9 @@ func (m *ScheduledUnits) GetUnits() []*ScheduledUnit {
 }
 
 type ScheduledUnit struct {
-	Name    string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	State   TargetState `protobuf:"varint,2,opt,name=state,proto3,enum=rpc.TargetState" json:"state,omitempty"`
-	Machine string      `protobuf:"bytes,3,opt,name=machine,proto3" json:"machine,omitempty"`
+	Name         string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	CurrentState TargetState `protobuf:"varint,2,opt,name=current_state,proto3,enum=rpc.TargetState" json:"current_state,omitempty"`
+	Machine      string      `protobuf:"bytes,3,opt,name=machine,proto3" json:"machine,omitempty"`
 }
 
 func (m *ScheduledUnit) Reset()      { *m = ScheduledUnit{} }
@@ -228,19 +227,120 @@ func (m *UnitName) Reset()      { *m = UnitName{} }
 func (*UnitName) ProtoMessage() {}
 
 type Unit struct {
-	Name  string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Unit  *UnitFile   `protobuf:"bytes,2,opt,name=unit" json:"unit,omitempty"`
-	State TargetState `protobuf:"varint,3,opt,name=state,proto3,enum=rpc.TargetState" json:"state,omitempty"`
+	Name         string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Unit         UnitFile    `protobuf:"bytes,2,opt,name=unit" json:"unit"`
+	DesiredState TargetState `protobuf:"varint,3,opt,name=desired_state,proto3,enum=rpc.TargetState" json:"desired_state,omitempty"`
 }
 
 func (m *Unit) Reset()      { *m = Unit{} }
 func (*Unit) ProtoMessage() {}
 
-func (m *Unit) GetUnit() *UnitFile {
+func (m *Unit) GetUnit() UnitFile {
 	if m != nil {
 		return m.Unit
 	}
+	return UnitFile{}
+}
+
+type MaybeScheduledUnit struct {
+	// Types that are valid to be assigned to IsScheduled:
+	//	*MaybeScheduledUnit_Unit
+	//	*MaybeScheduledUnit_Notfound
+	IsScheduled isMaybeScheduledUnit_IsScheduled `protobuf_oneof:"is_scheduled"`
+}
+
+func (m *MaybeScheduledUnit) Reset()      { *m = MaybeScheduledUnit{} }
+func (*MaybeScheduledUnit) ProtoMessage() {}
+
+type isMaybeScheduledUnit_IsScheduled interface {
+	isMaybeScheduledUnit_IsScheduled()
+	Equal(interface{}) bool
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type MaybeScheduledUnit_Unit struct {
+	Unit *ScheduledUnit `protobuf:"bytes,1,opt,name=unit,oneof"`
+}
+type MaybeScheduledUnit_Notfound struct {
+	Notfound *NotFound `protobuf:"bytes,2,opt,name=notfound,oneof"`
+}
+
+func (*MaybeScheduledUnit_Unit) isMaybeScheduledUnit_IsScheduled()     {}
+func (*MaybeScheduledUnit_Notfound) isMaybeScheduledUnit_IsScheduled() {}
+
+func (m *MaybeScheduledUnit) GetIsScheduled() isMaybeScheduledUnit_IsScheduled {
+	if m != nil {
+		return m.IsScheduled
+	}
 	return nil
+}
+
+func (m *MaybeScheduledUnit) GetUnit() *ScheduledUnit {
+	if x, ok := m.GetIsScheduled().(*MaybeScheduledUnit_Unit); ok {
+		return x.Unit
+	}
+	return nil
+}
+
+func (m *MaybeScheduledUnit) GetNotfound() *NotFound {
+	if x, ok := m.GetIsScheduled().(*MaybeScheduledUnit_Notfound); ok {
+		return x.Notfound
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*MaybeScheduledUnit) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
+	return _MaybeScheduledUnit_OneofMarshaler, _MaybeScheduledUnit_OneofUnmarshaler, []interface{}{
+		(*MaybeScheduledUnit_Unit)(nil),
+		(*MaybeScheduledUnit_Notfound)(nil),
+	}
+}
+
+func _MaybeScheduledUnit_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*MaybeScheduledUnit)
+	// is_scheduled
+	switch x := m.IsScheduled.(type) {
+	case *MaybeScheduledUnit_Unit:
+		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Unit); err != nil {
+			return err
+		}
+	case *MaybeScheduledUnit_Notfound:
+		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Notfound); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("MaybeScheduledUnit.IsScheduled has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _MaybeScheduledUnit_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*MaybeScheduledUnit)
+	switch tag {
+	case 1: // is_scheduled.unit
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ScheduledUnit)
+		err := b.DecodeMessage(msg)
+		m.IsScheduled = &MaybeScheduledUnit_Unit{msg}
+		return true, err
+	case 2: // is_scheduled.notfound
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(NotFound)
+		err := b.DecodeMessage(msg)
+		m.IsScheduled = &MaybeScheduledUnit_Notfound{msg}
+		return true, err
+	default:
+		return false, nil
+	}
 }
 
 type MaybeUnit struct {
@@ -351,13 +451,13 @@ func (m *NotFound) Reset()      { *m = NotFound{} }
 func (*NotFound) ProtoMessage() {}
 
 type UnitFile struct {
-	UnitOptions []*UnitOption `protobuf:"bytes,1,rep,name=unit_options" json:"unit_options,omitempty"`
+	UnitOptions []UnitOption `protobuf:"bytes,1,rep,name=unit_options" json:"unit_options"`
 }
 
 func (m *UnitFile) Reset()      { *m = UnitFile{} }
 func (*UnitFile) ProtoMessage() {}
 
-func (m *UnitFile) GetUnitOptions() []*UnitOption {
+func (m *UnitFile) GetUnitOptions() []UnitOption {
 	if m != nil {
 		return m.UnitOptions
 	}
@@ -390,6 +490,7 @@ func init() {
 	proto.RegisterType((*ScheduledUnit)(nil), "rpc.ScheduledUnit")
 	proto.RegisterType((*UnitName)(nil), "rpc.UnitName")
 	proto.RegisterType((*Unit)(nil), "rpc.Unit")
+	proto.RegisterType((*MaybeScheduledUnit)(nil), "rpc.MaybeScheduledUnit")
 	proto.RegisterType((*MaybeUnit)(nil), "rpc.MaybeUnit")
 	proto.RegisterType((*NotFound)(nil), "rpc.NotFound")
 	proto.RegisterType((*UnitFile)(nil), "rpc.UnitFile")
@@ -518,12 +619,6 @@ func (this *UnitFilter) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if this.Name != that1.Name {
-		return false
-	}
-	if this.CurrentState != that1.CurrentState {
-		return false
-	}
 	if this.Machine != that1.Machine {
 		return false
 	}
@@ -642,7 +737,7 @@ func (this *Heartbeat) Equal(that interface{}) bool {
 	if this.Machine != that1.Machine {
 		return false
 	}
-	if this.Ttl != that1.Ttl {
+	if this.TTL != that1.TTL {
 		return false
 	}
 	return true
@@ -693,7 +788,7 @@ func (this *Units) Equal(that interface{}) bool {
 		return false
 	}
 	for i := range this.Units {
-		if !this.Units[i].Equal(that1.Units[i]) {
+		if !this.Units[i].Equal(&that1.Units[i]) {
 			return false
 		}
 	}
@@ -793,7 +888,7 @@ func (this *ScheduledUnits) Equal(that interface{}) bool {
 		return false
 	}
 	for i := range this.Units {
-		if !this.Units[i].Equal(that1.Units[i]) {
+		if !this.Units[i].Equal(&that1.Units[i]) {
 			return false
 		}
 	}
@@ -822,7 +917,7 @@ func (this *ScheduledUnit) Equal(that interface{}) bool {
 	if this.Name != that1.Name {
 		return false
 	}
-	if this.State != that1.State {
+	if this.CurrentState != that1.CurrentState {
 		return false
 	}
 	if this.Machine != that1.Machine {
@@ -878,10 +973,91 @@ func (this *Unit) Equal(that interface{}) bool {
 	if this.Name != that1.Name {
 		return false
 	}
+	if !this.Unit.Equal(&that1.Unit) {
+		return false
+	}
+	if this.DesiredState != that1.DesiredState {
+		return false
+	}
+	return true
+}
+func (this *MaybeScheduledUnit) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*MaybeScheduledUnit)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if that1.IsScheduled == nil {
+		if this.IsScheduled != nil {
+			return false
+		}
+	} else if this.IsScheduled == nil {
+		return false
+	} else if !this.IsScheduled.Equal(that1.IsScheduled) {
+		return false
+	}
+	return true
+}
+func (this *MaybeScheduledUnit_Unit) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*MaybeScheduledUnit_Unit)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
 	if !this.Unit.Equal(that1.Unit) {
 		return false
 	}
-	if this.State != that1.State {
+	return true
+}
+func (this *MaybeScheduledUnit_Notfound) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*MaybeScheduledUnit_Notfound)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if !this.Notfound.Equal(that1.Notfound) {
 		return false
 	}
 	return true
@@ -1013,7 +1189,7 @@ func (this *UnitFile) Equal(that interface{}) bool {
 		return false
 	}
 	for i := range this.UnitOptions {
-		if !this.UnitOptions[i].Equal(that1.UnitOptions[i]) {
+		if !this.UnitOptions[i].Equal(&that1.UnitOptions[i]) {
 			return false
 		}
 	}
@@ -1089,10 +1265,8 @@ func (this *UnitFilter) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 7)
+	s := make([]string, 0, 5)
 	s = append(s, "&rpc.UnitFilter{")
-	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
-	s = append(s, "CurrentState: "+fmt.Sprintf("%#v", this.CurrentState)+",\n")
 	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
@@ -1141,7 +1315,7 @@ func (this *Heartbeat) GoString() string {
 	s = append(s, "&rpc.Heartbeat{")
 	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
 	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
-	s = append(s, "Ttl: "+fmt.Sprintf("%#v", this.Ttl)+",\n")
+	s = append(s, "TTL: "+fmt.Sprintf("%#v", this.TTL)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1161,7 +1335,7 @@ func (this *Units) GoString() string {
 	s := make([]string, 0, 5)
 	s = append(s, "&rpc.Units{")
 	if this.Units != nil {
-		s = append(s, "Units: "+fmt.Sprintf("%#v", this.Units)+",\n")
+		s = append(s, "Units: "+strings.Replace(fmt.Sprintf("%#v", this.Units), `&`, ``, 1)+",\n")
 	}
 	s = append(s, "}")
 	return strings.Join(s, "")
@@ -1200,7 +1374,7 @@ func (this *ScheduledUnits) GoString() string {
 	s := make([]string, 0, 5)
 	s = append(s, "&rpc.ScheduledUnits{")
 	if this.Units != nil {
-		s = append(s, "Units: "+fmt.Sprintf("%#v", this.Units)+",\n")
+		s = append(s, "Units: "+strings.Replace(fmt.Sprintf("%#v", this.Units), `&`, ``, 1)+",\n")
 	}
 	s = append(s, "}")
 	return strings.Join(s, "")
@@ -1212,7 +1386,7 @@ func (this *ScheduledUnit) GoString() string {
 	s := make([]string, 0, 7)
 	s = append(s, "&rpc.ScheduledUnit{")
 	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
-	s = append(s, "State: "+fmt.Sprintf("%#v", this.State)+",\n")
+	s = append(s, "CurrentState: "+fmt.Sprintf("%#v", this.CurrentState)+",\n")
 	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
@@ -1234,12 +1408,38 @@ func (this *Unit) GoString() string {
 	s := make([]string, 0, 7)
 	s = append(s, "&rpc.Unit{")
 	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
-	if this.Unit != nil {
-		s = append(s, "Unit: "+fmt.Sprintf("%#v", this.Unit)+",\n")
-	}
-	s = append(s, "State: "+fmt.Sprintf("%#v", this.State)+",\n")
+	s = append(s, "Unit: "+strings.Replace(this.Unit.GoString(), `&`, ``, 1)+",\n")
+	s = append(s, "DesiredState: "+fmt.Sprintf("%#v", this.DesiredState)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
+}
+func (this *MaybeScheduledUnit) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&rpc.MaybeScheduledUnit{")
+	if this.IsScheduled != nil {
+		s = append(s, "IsScheduled: "+fmt.Sprintf("%#v", this.IsScheduled)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *MaybeScheduledUnit_Unit) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&rpc.MaybeScheduledUnit_Unit{` +
+		`Unit:` + fmt.Sprintf("%#v", this.Unit) + `}`}, ", ")
+	return s
+}
+func (this *MaybeScheduledUnit_Notfound) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&rpc.MaybeScheduledUnit_Notfound{` +
+		`Notfound:` + fmt.Sprintf("%#v", this.Notfound) + `}`}, ", ")
+	return s
 }
 func (this *MaybeUnit) GoString() string {
 	if this == nil {
@@ -1285,7 +1485,7 @@ func (this *UnitFile) GoString() string {
 	s := make([]string, 0, 5)
 	s = append(s, "&rpc.UnitFile{")
 	if this.UnitOptions != nil {
-		s = append(s, "UnitOptions: "+fmt.Sprintf("%#v", this.UnitOptions)+",\n")
+		s = append(s, "UnitOptions: "+strings.Replace(fmt.Sprintf("%#v", this.UnitOptions), `&`, ``, 1)+",\n")
 	}
 	s = append(s, "}")
 	return strings.Join(s, "")
@@ -1338,7 +1538,7 @@ type RegistryClient interface {
 	// agents should request only the locally scheduled jobs
 	GetScheduledUnits(ctx context.Context, in *UnitFilter, opts ...grpc.CallOption) (*ScheduledUnits, error)
 	// should _never_ be used? fleetctl only ?
-	GetScheduledUnit(ctx context.Context, in *UnitName, opts ...grpc.CallOption) (*ScheduledUnit, error)
+	GetScheduledUnit(ctx context.Context, in *UnitName, opts ...grpc.CallOption) (*MaybeScheduledUnit, error)
 	// should _never_ be used ?
 	GetUnit(ctx context.Context, in *UnitName, opts ...grpc.CallOption) (*MaybeUnit, error)
 	GetUnits(ctx context.Context, in *UnitFilter, opts ...grpc.CallOption) (*Units, error)
@@ -1374,8 +1574,8 @@ func (c *registryClient) GetScheduledUnits(ctx context.Context, in *UnitFilter, 
 	return out, nil
 }
 
-func (c *registryClient) GetScheduledUnit(ctx context.Context, in *UnitName, opts ...grpc.CallOption) (*ScheduledUnit, error) {
-	out := new(ScheduledUnit)
+func (c *registryClient) GetScheduledUnit(ctx context.Context, in *UnitName, opts ...grpc.CallOption) (*MaybeScheduledUnit, error) {
+	out := new(MaybeScheduledUnit)
 	err := grpc.Invoke(ctx, "/rpc.Registry/GetScheduledUnit", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -1529,7 +1729,7 @@ type RegistryServer interface {
 	// agents should request only the locally scheduled jobs
 	GetScheduledUnits(context.Context, *UnitFilter) (*ScheduledUnits, error)
 	// should _never_ be used? fleetctl only ?
-	GetScheduledUnit(context.Context, *UnitName) (*ScheduledUnit, error)
+	GetScheduledUnit(context.Context, *UnitName) (*MaybeScheduledUnit, error)
 	// should _never_ be used ?
 	GetUnit(context.Context, *UnitName) (*MaybeUnit, error)
 	GetUnits(context.Context, *UnitFilter) (*Units, error)
@@ -1937,19 +2137,8 @@ func (m *UnitFilter) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Name) > 0 {
-		data[i] = 0xa
-		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Name)))
-		i += copy(data[i:], m.Name)
-	}
-	if m.CurrentState != 0 {
-		data[i] = 0x10
-		i++
-		i = encodeVarintFleet(data, i, uint64(m.CurrentState))
-	}
 	if len(m.Machine) > 0 {
-		data[i] = 0x1a
+		data[i] = 0xa
 		i++
 		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
 		i += copy(data[i:], m.Machine)
@@ -2083,10 +2272,10 @@ func (m *Heartbeat) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
 		i += copy(data[i:], m.Machine)
 	}
-	if m.Ttl != 0 {
+	if m.TTL != 0 {
 		data[i] = 0x18
 		i++
-		i = encodeVarintFleet(data, i, uint64(m.Ttl))
+		i = encodeVarintFleet(data, i, uint64(m.TTL))
 	}
 	return i, nil
 }
@@ -2274,10 +2463,10 @@ func (m *ScheduledUnit) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.Name)))
 		i += copy(data[i:], m.Name)
 	}
-	if m.State != 0 {
+	if m.CurrentState != 0 {
 		data[i] = 0x10
 		i++
-		i = encodeVarintFleet(data, i, uint64(m.State))
+		i = encodeVarintFleet(data, i, uint64(m.CurrentState))
 	}
 	if len(m.Machine) > 0 {
 		data[i] = 0x1a
@@ -2333,24 +2522,75 @@ func (m *Unit) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.Name)))
 		i += copy(data[i:], m.Name)
 	}
-	if m.Unit != nil {
-		data[i] = 0x12
-		i++
-		i = encodeVarintFleet(data, i, uint64(m.Unit.Size()))
-		n2, err := m.Unit.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
+	data[i] = 0x12
+	i++
+	i = encodeVarintFleet(data, i, uint64(m.Unit.Size()))
+	n2, err := m.Unit.MarshalTo(data[i:])
+	if err != nil {
+		return 0, err
 	}
-	if m.State != 0 {
+	i += n2
+	if m.DesiredState != 0 {
 		data[i] = 0x18
 		i++
-		i = encodeVarintFleet(data, i, uint64(m.State))
+		i = encodeVarintFleet(data, i, uint64(m.DesiredState))
 	}
 	return i, nil
 }
 
+func (m *MaybeScheduledUnit) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *MaybeScheduledUnit) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.IsScheduled != nil {
+		nn3, err := m.IsScheduled.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn3
+	}
+	return i, nil
+}
+
+func (m *MaybeScheduledUnit_Unit) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.Unit != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintFleet(data, i, uint64(m.Unit.Size()))
+		n4, err := m.Unit.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n4
+	}
+	return i, nil
+}
+func (m *MaybeScheduledUnit_Notfound) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.Notfound != nil {
+		data[i] = 0x12
+		i++
+		i = encodeVarintFleet(data, i, uint64(m.Notfound.Size()))
+		n5, err := m.Notfound.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n5
+	}
+	return i, nil
+}
 func (m *MaybeUnit) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -2367,11 +2607,11 @@ func (m *MaybeUnit) MarshalTo(data []byte) (int, error) {
 	var l int
 	_ = l
 	if m.HasUnit != nil {
-		nn3, err := m.HasUnit.MarshalTo(data[i:])
+		nn6, err := m.HasUnit.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += nn3
+		i += nn6
 	}
 	return i, nil
 }
@@ -2382,11 +2622,11 @@ func (m *MaybeUnit_Unit) MarshalTo(data []byte) (int, error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintFleet(data, i, uint64(m.Unit.Size()))
-		n4, err := m.Unit.MarshalTo(data[i:])
+		n7, err := m.Unit.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n4
+		i += n7
 	}
 	return i, nil
 }
@@ -2396,11 +2636,11 @@ func (m *MaybeUnit_Notfound) MarshalTo(data []byte) (int, error) {
 		data[i] = 0x12
 		i++
 		i = encodeVarintFleet(data, i, uint64(m.Notfound.Size()))
-		n5, err := m.Notfound.MarshalTo(data[i:])
+		n8, err := m.Notfound.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n5
+		i += n8
 	}
 	return i, nil
 }
@@ -2570,13 +2810,6 @@ func (m *UnitStateFilter) Size() (n int) {
 func (m *UnitFilter) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.Name)
-	if l > 0 {
-		n += 1 + l + sovFleet(uint64(l))
-	}
-	if m.CurrentState != 0 {
-		n += 1 + sovFleet(uint64(m.CurrentState))
-	}
 	l = len(m.Machine)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
@@ -2640,8 +2873,8 @@ func (m *Heartbeat) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	if m.Ttl != 0 {
-		n += 1 + sovFleet(uint64(m.Ttl))
+	if m.TTL != 0 {
+		n += 1 + sovFleet(uint64(m.TTL))
 	}
 	return n
 }
@@ -2725,8 +2958,8 @@ func (m *ScheduledUnit) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	if m.State != 0 {
-		n += 1 + sovFleet(uint64(m.State))
+	if m.CurrentState != 0 {
+		n += 1 + sovFleet(uint64(m.CurrentState))
 	}
 	l = len(m.Machine)
 	if l > 0 {
@@ -2752,16 +2985,41 @@ func (m *Unit) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	if m.Unit != nil {
-		l = m.Unit.Size()
-		n += 1 + l + sovFleet(uint64(l))
-	}
-	if m.State != 0 {
-		n += 1 + sovFleet(uint64(m.State))
+	l = m.Unit.Size()
+	n += 1 + l + sovFleet(uint64(l))
+	if m.DesiredState != 0 {
+		n += 1 + sovFleet(uint64(m.DesiredState))
 	}
 	return n
 }
 
+func (m *MaybeScheduledUnit) Size() (n int) {
+	var l int
+	_ = l
+	if m.IsScheduled != nil {
+		n += m.IsScheduled.Size()
+	}
+	return n
+}
+
+func (m *MaybeScheduledUnit_Unit) Size() (n int) {
+	var l int
+	_ = l
+	if m.Unit != nil {
+		l = m.Unit.Size()
+		n += 1 + l + sovFleet(uint64(l))
+	}
+	return n
+}
+func (m *MaybeScheduledUnit_Notfound) Size() (n int) {
+	var l int
+	_ = l
+	if m.Notfound != nil {
+		l = m.Notfound.Size()
+		n += 1 + l + sovFleet(uint64(l))
+	}
+	return n
+}
 func (m *MaybeUnit) Size() (n int) {
 	var l int
 	_ = l
@@ -2878,8 +3136,6 @@ func (this *UnitFilter) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&UnitFilter{`,
-		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`CurrentState:` + fmt.Sprintf("%v", this.CurrentState) + `,`,
 		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
 		`}`,
 	}, "")
@@ -2926,7 +3182,7 @@ func (this *Heartbeat) String() string {
 	s := strings.Join([]string{`&Heartbeat{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
 		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
-		`Ttl:` + fmt.Sprintf("%v", this.Ttl) + `,`,
+		`TTL:` + fmt.Sprintf("%v", this.TTL) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2945,7 +3201,7 @@ func (this *Units) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&Units{`,
-		`Units:` + strings.Replace(fmt.Sprintf("%v", this.Units), "Unit", "Unit", 1) + `,`,
+		`Units:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Units), "Unit", "Unit", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2980,7 +3236,7 @@ func (this *ScheduledUnits) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&ScheduledUnits{`,
-		`Units:` + strings.Replace(fmt.Sprintf("%v", this.Units), "ScheduledUnit", "ScheduledUnit", 1) + `,`,
+		`Units:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Units), "ScheduledUnit", "ScheduledUnit", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2991,7 +3247,7 @@ func (this *ScheduledUnit) String() string {
 	}
 	s := strings.Join([]string{`&ScheduledUnit{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`State:` + fmt.Sprintf("%v", this.State) + `,`,
+		`CurrentState:` + fmt.Sprintf("%v", this.CurrentState) + `,`,
 		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
 		`}`,
 	}, "")
@@ -3013,8 +3269,38 @@ func (this *Unit) String() string {
 	}
 	s := strings.Join([]string{`&Unit{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`Unit:` + strings.Replace(fmt.Sprintf("%v", this.Unit), "UnitFile", "UnitFile", 1) + `,`,
-		`State:` + fmt.Sprintf("%v", this.State) + `,`,
+		`Unit:` + strings.Replace(strings.Replace(this.Unit.String(), "UnitFile", "UnitFile", 1), `&`, ``, 1) + `,`,
+		`DesiredState:` + fmt.Sprintf("%v", this.DesiredState) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *MaybeScheduledUnit) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&MaybeScheduledUnit{`,
+		`IsScheduled:` + fmt.Sprintf("%v", this.IsScheduled) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *MaybeScheduledUnit_Unit) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&MaybeScheduledUnit_Unit{`,
+		`Unit:` + strings.Replace(fmt.Sprintf("%v", this.Unit), "ScheduledUnit", "ScheduledUnit", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *MaybeScheduledUnit_Notfound) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&MaybeScheduledUnit_Notfound{`,
+		`Notfound:` + strings.Replace(fmt.Sprintf("%v", this.Notfound), "NotFound", "NotFound", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3063,7 +3349,7 @@ func (this *UnitFile) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&UnitFile{`,
-		`UnitOptions:` + strings.Replace(fmt.Sprintf("%v", this.UnitOptions), "UnitOption", "UnitOption", 1) + `,`,
+		`UnitOptions:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.UnitOptions), "UnitOption", "UnitOption", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3500,54 +3786,6 @@ func (m *UnitFilter) Unmarshal(data []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowFleet
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthFleet
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Name = string(data[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CurrentState", wireType)
-			}
-			m.CurrentState = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowFleet
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				m.CurrentState |= (TargetState(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
 			}
@@ -4033,9 +4271,9 @@ func (m *Heartbeat) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ttl", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TTL", wireType)
 			}
-			m.Ttl = 0
+			m.TTL = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowFleet
@@ -4045,7 +4283,7 @@ func (m *Heartbeat) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				m.Ttl |= (int32(b) & 0x7F) << shift
+				m.TTL |= (int32(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4176,7 +4414,7 @@ func (m *Units) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Units = append(m.Units, &Unit{})
+			m.Units = append(m.Units, Unit{})
 			if err := m.Units[len(m.Units)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -4562,7 +4800,7 @@ func (m *ScheduledUnits) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Units = append(m.Units, &ScheduledUnit{})
+			m.Units = append(m.Units, ScheduledUnit{})
 			if err := m.Units[len(m.Units)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -4648,9 +4886,9 @@ func (m *ScheduledUnit) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field State", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CurrentState", wireType)
 			}
-			m.State = 0
+			m.CurrentState = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowFleet
@@ -4660,7 +4898,7 @@ func (m *ScheduledUnit) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				m.State |= (TargetState(b) & 0x7F) << shift
+				m.CurrentState |= (TargetState(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4878,18 +5116,15 @@ func (m *Unit) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Unit == nil {
-				m.Unit = &UnitFile{}
-			}
 			if err := m.Unit.Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field State", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field DesiredState", wireType)
 			}
-			m.State = 0
+			m.DesiredState = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowFleet
@@ -4899,11 +5134,125 @@ func (m *Unit) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				m.State |= (TargetState(b) & 0x7F) << shift
+				m.DesiredState |= (TargetState(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipFleet(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthFleet
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MaybeScheduledUnit) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowFleet
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MaybeScheduledUnit: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MaybeScheduledUnit: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Unit", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowFleet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthFleet
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &ScheduledUnit{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.IsScheduled = &MaybeScheduledUnit_Unit{v}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Notfound", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowFleet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthFleet
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &NotFound{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.IsScheduled = &MaybeScheduledUnit_Notfound{v}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipFleet(data[iNdEx:])
@@ -5144,7 +5493,7 @@ func (m *UnitFile) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.UnitOptions = append(m.UnitOptions, &UnitOption{})
+			m.UnitOptions = append(m.UnitOptions, UnitOption{})
 			if err := m.UnitOptions[len(m.UnitOptions)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}

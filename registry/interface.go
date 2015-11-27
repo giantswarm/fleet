@@ -21,6 +21,7 @@ import (
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
+	"github.com/coreos/fleet/pkg"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -35,6 +36,7 @@ type Registry interface {
 	ScheduleUnit(name, machID string) error
 	SetUnitTargetState(name string, state job.JobState) error
 	UnscheduleUnit(name, machID string) error
+	NewEventStream() pkg.EventStream
 
 	UnitRegistry
 	MachineRegistry

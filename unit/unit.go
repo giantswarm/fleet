@@ -136,17 +136,17 @@ func (u *UnitFile) Hash() Hash {
 	return Hash(sha1.Sum(u.Bytes()))
 }
 
-func (unitFile *UnitFile) ToPB() *pb.UnitFile{
-	options := make([]*pb.UnitOption, len(unitFile.Options))
+func (unitFile *UnitFile) ToPB() pb.UnitFile {
+	options := make([]pb.UnitOption, len(unitFile.Options))
 	for i, opt := range unitFile.Options {
-		options[i] = &pb.UnitOption{
-			Name: opt.Name,
+		options[i] = pb.UnitOption{
+			Name:    opt.Name,
 			Section: opt.Section,
-			Value: opt.Value,
+			Value:   opt.Value,
 		}
 	}
 
-	return &pb.UnitFile{UnitOptions: options}
+	return pb.UnitFile{UnitOptions: options}
 }
 
 // RecognizedUnitType determines whether or not the given unit name represents
@@ -217,7 +217,7 @@ func NewUnitState(loadState, activeState, subState, mID string) *UnitState {
 
 func (s UnitState) ToPB() *pb.UnitState {
 	return &pb.UnitState{
-		Name: s.UnitHash,
+		Name:        s.UnitName,
 		Hash:        s.UnitHash,
 		LoadState:   s.LoadState,
 		ActiveState: s.ActiveState,
