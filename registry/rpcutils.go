@@ -39,54 +39,6 @@ func (u *unitHeartbeat) beatLaunched(machine string, ttl time.Duration) {
 	u.machine = machine
 }
 
-func (s *rpcserver) cacheUnits() error {
-	units, err := s.etcdRegistry.Units()
-	if err != nil {
-		return err
-	}
-	for _, u := range units {
-		s.unitsCache[u.Name] = u.ToPB()
-	}
-	fmt.Println("XDATA", "cached ", len(s.unitsCache), "units")
-	return nil
-}
-
-func (s *rpcserver) cacheSchedule() error {
-	schedule, err := s.etcdRegistry.Schedule()
-	if err != nil {
-		return err
-	}
-
-	for _, scheduledUnit := range schedule {
-		s.scheduledUnits[scheduledUnit.Name] = scheduledUnit.ToPB()
-	}
-	return nil
-}
-
-func (s *rpcserver) isScheduled(unitName, machine string) bool {
-	if machine == "" || unitName == "" {
-		return false
-	}
-	if s, exists := s.scheduledUnits[unitName]; exists {
-		return s.Machine == machine
-	}
-	return false
-}
-
-func (s *rpcserver) getScheduledUnitState(unitName string) pb.TargetState {
-	if heartbeat, hasHeartbeat := s.unitHeartbeats[unitName]; hasHeartbeat {
-		if s.isScheduled(unitName, heartbeat.machine) {
-			if heartbeat.isLaunchedValid() {
-				return pb.TargetState_LAUNCHED
-			}
-			if heartbeat.isValid() {
-				return pb.TargetState_LOADED
-			}
-		}
-	}
-	return pb.TargetState_INACTIVE
-}
-
 func (s *rpcserver) notifyMachine(machine string, units []string) {
 	if ch, exists := s.machinesDirectory[machine]; exists {
 		ch <- units
