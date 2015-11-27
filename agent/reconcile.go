@@ -59,7 +59,8 @@ func (ar *AgentReconciler) Run(a *Agent, stop chan bool) {
 			log.Debug(msg)
 		}
 	}
-	reconciler := pkg.NewPeriodicReconciler(reconcileInterval, reconcile)
+
+	reconciler := pkg.NewPeriodicReconciler(reconcileInterval, reconcile, ar.reg.NewEventStream())
 	reconciler.Run(stop)
 }
 
