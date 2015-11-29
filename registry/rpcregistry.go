@@ -2,7 +2,6 @@ package registry
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"sync"
@@ -12,6 +11,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/coreos/fleet/debug"
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/pkg"
@@ -36,6 +36,8 @@ type RPCRegistry struct {
 	mu                   *sync.Mutex
 	server               *grpc.Server
 
+	connectMu *sync.RWMutex
+
 	done chan struct{}
 }
 
@@ -50,6 +52,7 @@ func NewRPCRegistry(etcdRegistry *EtcdRegistry, leaderUpdateNotifier chan string
 		localMachine:         mach,
 		eventListeners:       map[chan pkg.Event]struct{}{},
 		mu:                   new(sync.Mutex),
+		connectMu:            new(sync.RWMutex),
 		currentLeader:        "",
 	}
 }
@@ -59,6 +62,7 @@ func (r *RPCRegistry) NewEventStream() pkg.EventStream {
 }
 
 func (r *RPCRegistry) Next(stop chan struct{}) chan pkg.Event {
+	defer debug.Exit_(debug.Enter_("SIGNAL"))
 	ch := make(chan pkg.Event)
 	r.mu.Lock()
 	r.eventListeners[ch] = struct{}{}
@@ -74,53 +78,82 @@ func (r *RPCRegistry) Next(stop chan struct{}) chan pkg.Event {
 
 func (r *RPCRegistry) broadcastEvent(ev agentEvent) {
 	for ch, _ := range r.eventListeners {
+		fmt.Println("SIGNAL RECEIVED")
 		ch <- "newEvent"
 	}
 }
 
+func (r *RPCRegistry) ctx() context.Context {
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	return ctx
+}
+
 func (r *RPCRegistry) Start() {
 	for leaderUpdate := range r.leaderUpdateNotifier {
-		if r.currentLeader != leaderUpdate {
-			r.currentLeader = leaderUpdate
-			fmt.Println("XXX got new leader", leaderUpdate)
-			if r.currentLeader == r.localMachine.String() {
-				fmt.Println("XXX local machine is leader, doing things ")
-				r.startServer()
-			} else {
-				if r.listener != nil {
-					r.listener.Close()
-				}
-			}
-			if r.registryConn != nil {
-				r.registryConn.Close()
-			}
-			addr := fmt.Sprintf("%s:%d", r.findMachineAddr(r.currentLeader), port)
-			var err error
-			r.registryConn, err = grpc.Dial(addr, grpc.WithInsecure())
-			if err != nil {
-				log.Fatalf("nope: %s", err)
-			}
-			r.registryClient = rpc.NewRegistryClient(r.registryConn)
-			go func() {
-				for {
-					eventsStream, err := r.getClient().AgentEvents(context.Background(), &rpc.MachineProperties{r.localMachine.String()})
-					if err != nil {
-						continue
-					}
-					for {
-						events, err := eventsStream.Recv()
-						if err == io.EOF {
-							break
-						}
-						if err != nil {
-							break
-						}
-						r.broadcastEvent(agentEvent{events.UnitIds})
-					}
-				}
-			}()
+		if r.currentLeader == leaderUpdate {
+			continue
 		}
+		if r.currentLeader == r.localMachine.String() {
+			r.listener.Close()
+			r.done <- struct{}{}
+		}
+		r.currentLeader = leaderUpdate
+		fmt.Println("LEAD XXX got new leader", leaderUpdate)
+		if r.currentLeader == r.localMachine.String() {
+			fmt.Println("LEAD XXX local machine is leader, doing things ")
+			r.startServer()
+		}
+		if r.registryConn != nil {
+			r.registryConn.Close()
+		}
+		r.connect()
+
+		// go func() {
+		// 	for {
+		// 		eventsStream, err := r.getClient().AgentEvents(r.ctx(), &rpc.MachineProperties{r.localMachine.String()})
+		// 		if err != nil {
+		// 			continue
+		// 		}
+		// 		for {
+		// 			events, err := eventsStream.Recv()
+		// 			if err == io.EOF {
+		// 				break
+		// 			}
+		// 			if err != nil {
+		// 				break
+		// 			}
+		// 			r.broadcastEvent(agentEvent{events.UnitIds})
+		// 		}
+		// 	}
+		// }()
+
 	}
+}
+
+func (r *RPCRegistry) dialer(addr string, timeout time.Duration) (net.Conn, error) {
+	for {
+		addr := fmt.Sprintf("%s:%d", r.findMachineAddr(r.currentLeader), port)
+		conn, err := net.Dial("tcp", addr)
+		if err == nil {
+			return conn, nil
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+}
+
+func (r *RPCRegistry) connect() {
+	timeout := 500 * time.Millisecond
+	//r.connectMu.Lock()
+	addr := fmt.Sprintf("%s:%d", r.findMachineAddr(r.currentLeader), port)
+	var err error
+	r.registryConn, err = grpc.Dial(addr, grpc.WithInsecure(), grpc.WithDialer(r.dialer), grpc.WithTimeout(timeout), grpc.WithBlock())
+	if err != nil {
+		fmt.Println("XXX FAILURE", err)
+		log.Fatalf("unable to connect to registry: %s", err)
+	}
+
+	r.registryClient = rpc.NewRegistryClient(r.registryConn)
+	//r.connectMu.Unlock()
 }
 
 func (r *RPCRegistry) findMachineAddr(machineID string) string {
@@ -139,6 +172,8 @@ func (r *RPCRegistry) findMachineAddr(machineID string) string {
 }
 
 func (r *RPCRegistry) getClient() rpc.RegistryClient {
+	// r.connectMu.RLock()
+	// defer r.connectMu.RUnlock()
 	for ; ; time.Sleep(100 * time.Millisecond) {
 		if r.registryClient != nil {
 			break
@@ -151,28 +186,28 @@ func (r *RPCRegistry) ClearUnitHeartbeat(name string) {
 	fmt.Println("XRPCC", "ClearUnitHeartbeat()", name)
 	//r.etcdRegistry.ClearUnitHeartbeat(name)
 	//return
-	r.getClient().ClearUnitHeartbeat(context.Background(), &rpc.UnitName{name})
+	r.getClient().ClearUnitHeartbeat(r.ctx(), &rpc.UnitName{name})
 }
 
 func (r *RPCRegistry) CreateUnit(j *job.Unit) error {
 	fmt.Println("XRPCC", "CreateUnit()", j)
 	//return r.etcdRegistry.CreateUnit(j)
 	un := j.ToPB()
-	_, err := r.getClient().CreateUnit(context.Background(), &un)
+	_, err := r.getClient().CreateUnit(r.ctx(), &un)
 	return err
 }
 
 func (r *RPCRegistry) DestroyUnit(name string) error {
 	fmt.Println("XRPCC", "DestroyUnit()", name)
 	//return r.etcdRegistry.DestroyUnit(name)
-	_, err := r.getClient().DestroyUnit(context.Background(), &rpc.UnitName{name})
+	_, err := r.getClient().DestroyUnit(r.ctx(), &rpc.UnitName{name})
 	return err
 }
 
 func (r *RPCRegistry) UnitHeartbeat(name, machID string, ttl time.Duration) error {
 	fmt.Println("XRPCC", "UnitHeartbeat()", name, machID)
 	//return r.etcdRegistry.UnitHeartbeat(name, machID, ttl)
-	_, err := r.getClient().UnitHeartbeat(context.Background(), &rpc.Heartbeat{
+	_, err := r.getClient().UnitHeartbeat(r.ctx(), &rpc.Heartbeat{
 		Name:    name,
 		Machine: machID,
 		TTL:     int32(ttl.Seconds()),
@@ -187,7 +222,7 @@ func (r *RPCRegistry) RemoveMachineState(machID string) error {
 func (r *RPCRegistry) RemoveUnitState(name string) error {
 	fmt.Println("XRPCC", "RemoveUnitState()", name)
 	//return r.etcdRegistry.RemoveUnitState(name)
-	_, err := r.getClient().RemoveUnitState(context.Background(), &rpc.UnitName{name})
+	_, err := r.getClient().RemoveUnitState(r.ctx(), &rpc.UnitName{name})
 	return err
 }
 
@@ -199,7 +234,7 @@ func (r *RPCRegistry) SaveUnitState(name string, unitState *unit.UnitState, ttl 
 	}
 	fmt.Println("XRPCC", "SaveUnitState()", name, unitState)
 
-	r.getClient().SaveUnitState(context.Background(), &rpc.SaveUnitStateRequest{
+	r.getClient().SaveUnitState(r.ctx(), &rpc.SaveUnitStateRequest{
 		Name:  name,
 		State: unitState.ToPB(),
 		TTL:   int32(ttl.Seconds()),
@@ -209,7 +244,7 @@ func (r *RPCRegistry) SaveUnitState(name string, unitState *unit.UnitState, ttl 
 func (r *RPCRegistry) ScheduleUnit(name, machID string) error {
 	fmt.Println("XRPCC", "ScheduleUnit()", name, machID)
 	//return r.etcdRegistry.ScheduleUnit(name, machID)
-	_, err := r.getClient().ScheduleUnit(context.Background(), &rpc.ScheduleUnitRequest{
+	_, err := r.getClient().ScheduleUnit(r.ctx(), &rpc.ScheduleUnitRequest{
 		Name:    name,
 		Machine: machID,
 	})
@@ -219,7 +254,7 @@ func (r *RPCRegistry) ScheduleUnit(name, machID string) error {
 func (r *RPCRegistry) SetUnitTargetState(name string, state job.JobState) error {
 	fmt.Println("XRPCC", "SetUnitTargetState()", name, state)
 	//return r.etcdRegistry.SetUnitTargetState(name, state)
-	_, err := r.getClient().SetUnitTargetState(context.Background(), &rpc.ScheduledUnit{
+	_, err := r.getClient().SetUnitTargetState(r.ctx(), &rpc.ScheduledUnit{
 		Name:         name,
 		CurrentState: state.ToPB(),
 	})
@@ -229,7 +264,7 @@ func (r *RPCRegistry) SetUnitTargetState(name string, state job.JobState) error 
 func (r *RPCRegistry) UnscheduleUnit(name, machID string) error {
 	fmt.Println("XRPCC", "UnscheduleUnit()", name, machID)
 	//return r.etcdRegistry.UnscheduleUnit(name, machID)
-	_, err := r.getClient().UnscheduleUnit(context.Background(), &rpc.UnscheduleUnitRequest{
+	_, err := r.getClient().UnscheduleUnit(r.ctx(), &rpc.UnscheduleUnitRequest{
 		Name:    name,
 		Machine: machID,
 	})
@@ -247,7 +282,7 @@ func (r *RPCRegistry) SetMachineState(ms machine.MachineState, ttl time.Duration
 func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
 	fmt.Println("XRPCC", "Schedule()")
 	//return r.etcdRegistry.Schedule()
-	scheduledUnits, err := r.getClient().GetScheduledUnits(context.Background(), &rpc.UnitFilter{})
+	scheduledUnits, err := r.getClient().GetScheduledUnits(r.ctx(), &rpc.UnitFilter{})
 	if err != nil {
 		fmt.Println("ERROR XXX", err)
 		return []job.ScheduledUnit{}, err
@@ -268,7 +303,7 @@ func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
 func (r *RPCRegistry) ScheduledUnit(name string) (*job.ScheduledUnit, error) {
 	fmt.Println("XRPCC", "ScheduleUnit()", name)
 	//return r.etcdRegistry.ScheduledUnit(name)
-	maybeSchedUnit, err := r.getClient().GetScheduledUnit(context.Background(), &rpc.UnitName{name})
+	maybeSchedUnit, err := r.getClient().GetScheduledUnit(r.ctx(), &rpc.UnitName{name})
 
 	if err != nil {
 		return nil, err
@@ -296,7 +331,7 @@ func (r *RPCRegistry) Unit(name string) (*job.Unit, error) {
 	//fmt.Println("XRPCC Unit()", zunits, zerr)
 
 	//return r.etcdRegistry.Unit(name)
-	maybeUnit, err := r.getClient().GetUnit(context.Background(), &rpc.UnitName{name})
+	maybeUnit, err := r.getClient().GetUnit(r.ctx(), &rpc.UnitName{name})
 	if err != nil {
 		return nil, err
 	}
@@ -310,21 +345,9 @@ func (r *RPCRegistry) Unit(name string) (*job.Unit, error) {
 	return nil, nil
 }
 
-func newCtx() context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), time.Duration(100)*time.Millisecond)
-	return ctx
-}
-
 func (r *RPCRegistry) Units() ([]job.Unit, error) {
 	fmt.Println("XRPCC", "Units()")
-	if 1 == 2 {
-		units, err := r.etcdRegistry.Units()
-		//fmt.Println("XRPCY", units, err)
-		//xunits, xerr := r.getClient().GetUnits(newCtx(), &rpc.UnitFilter{})
-		//fmt.Println("XRPCR", xunits, xerr)
-		return units, err
-	}
-	units, err := r.getClient().GetUnits(context.Background(), &rpc.UnitFilter{})
+	units, err := r.getClient().GetUnits(r.ctx(), &rpc.UnitFilter{})
 	if err != nil {
 		fmt.Println("ERROR XXX", err)
 		return []job.Unit{}, err
@@ -342,7 +365,7 @@ func (r *RPCRegistry) UnitStates() ([]*unit.UnitState, error) {
 	//return r.etcdRegistry.UnitStates()
 	fmt.Println("XRPCC", "UnitStates()")
 
-	unitStates, err := r.getClient().GetUnitStates(context.Background(), &rpc.UnitStateFilter{})
+	unitStates, err := r.getClient().GetUnitStates(r.ctx(), &rpc.UnitStateFilter{})
 	if err != nil {
 		return nil, err
 	}
