@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/coreos/fleet/debug"
 	pb "github.com/coreos/fleet/rpc"
 )
 
@@ -12,7 +13,7 @@ type inmemoryRegistry struct {
 	unitsCache     map[string]pb.Unit
 	scheduledUnits map[string]pb.ScheduledUnit
 	unitHeartbeats map[string]*unitHeartbeat
-	mu             *sync.Mutex
+	mu             *sync.RWMutex
 }
 
 func newInmemoryRegistry() *inmemoryRegistry {
@@ -20,9 +21,8 @@ func newInmemoryRegistry() *inmemoryRegistry {
 		unitsCache:     map[string]pb.Unit{},
 		scheduledUnits: map[string]pb.ScheduledUnit{},
 		unitHeartbeats: map[string]*unitHeartbeat{},
-		mu:             new(sync.Mutex),
+		mu:             new(sync.RWMutex),
 	}
-
 }
 
 func (r *inmemoryRegistry) LoadFrom(reg UnitRegistry) error {
@@ -46,9 +46,14 @@ func (r *inmemoryRegistry) LoadFrom(reg UnitRegistry) error {
 	}
 
 	return nil
+
 }
 
 func (r *inmemoryRegistry) Schedule() (units []pb.ScheduledUnit, err error) {
+	defer debug.Exit_(debug.Enter_())
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	units = make([]pb.ScheduledUnit, 0, len(r.scheduledUnits))
 	for _, schedUnit := range r.scheduledUnits {
 		su := schedUnit
@@ -59,6 +64,10 @@ func (r *inmemoryRegistry) Schedule() (units []pb.ScheduledUnit, err error) {
 }
 
 func (r *inmemoryRegistry) ScheduledUnit(name string) (unit *pb.ScheduledUnit, exists bool) {
+	defer debug.Exit_(debug.Enter_(name))
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	if schedUnit, exists := r.scheduledUnits[name]; exists {
 		su := &schedUnit
 		su.CurrentState = r.getScheduledUnitState(name)
@@ -68,11 +77,19 @@ func (r *inmemoryRegistry) ScheduledUnit(name string) (unit *pb.ScheduledUnit, e
 }
 
 func (r *inmemoryRegistry) Unit(name string) (pb.Unit, bool) {
+	defer debug.Exit_(debug.Enter_(name))
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	u, exists := r.unitsCache[name]
 	return u, exists
 }
 
 func (r *inmemoryRegistry) Units() []pb.Unit {
+	defer debug.Exit_(debug.Enter_())
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	units := make([]pb.Unit, len(r.unitsCache))
 	unitNames := make([]string, 0, len(r.unitsCache))
 	for k, _ := range r.unitsCache {
@@ -87,6 +104,10 @@ func (r *inmemoryRegistry) Units() []pb.Unit {
 }
 
 func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
+	defer debug.Exit_(debug.Enter_())
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	states := []*pb.UnitState{}
 	mus := r.statesByMUSKey()
 
@@ -104,12 +125,20 @@ func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
 }
 
 func (r *inmemoryRegistry) ClearUnitHeartbeat(name string) {
+	defer debug.Exit_(debug.Enter_(name))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if _, exists := r.unitHeartbeats[name]; exists {
 		r.unitHeartbeats[name].launchedDeadline = time.Now()
 	}
 }
 
 func (r *inmemoryRegistry) DestroyUnit(name string) bool {
+	defer debug.Exit_(debug.Enter_(name))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if _, exists := r.unitsCache[name]; exists {
 		delete(r.unitsCache, name)
 		return true
@@ -118,12 +147,20 @@ func (r *inmemoryRegistry) DestroyUnit(name string) bool {
 }
 
 func (r *inmemoryRegistry) RemoveUnitState(unitname string) {
+	defer debug.Exit_(debug.Enter_(unitname))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if _, exists := r.unitHeartbeats[unitname]; exists {
 		delete(r.unitHeartbeats, unitname)
 	}
 }
 
 func (r *inmemoryRegistry) SaveUnitState(unitname string, state *pb.UnitState, ttl time.Duration) {
+	defer debug.Exit_(debug.Enter_(unitname, state))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.unitHeartbeats[unitname] = &unitHeartbeat{
 		state:    state,
 		machine:  state.Machine,
@@ -132,12 +169,20 @@ func (r *inmemoryRegistry) SaveUnitState(unitname string, state *pb.UnitState, t
 }
 
 func (r *inmemoryRegistry) UnitHeartbeat(unitname, machineid string, ttl time.Duration) {
+	defer debug.Exit_(debug.Enter_(unitname, machineid, ttl))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if _, exists := r.unitHeartbeats[unitname]; exists {
 		r.unitHeartbeats[unitname].beatLaunched(machineid, ttl)
 	}
 }
 
 func (r *inmemoryRegistry) ScheduleUnit(unitname, machineid string) {
+	defer debug.Exit_(debug.Enter_(unitname, machineid))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.scheduledUnits[unitname] = pb.ScheduledUnit{
 		Name:         unitname,
 		CurrentState: pb.TargetState_INACTIVE,
@@ -146,10 +191,18 @@ func (r *inmemoryRegistry) ScheduleUnit(unitname, machineid string) {
 }
 
 func (r *inmemoryRegistry) UnscheduleUnit(unitname, machineid string) {
+	defer debug.Exit_(debug.Enter_(unitname, machineid))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	delete(r.scheduledUnits, unitname)
 }
 
 func (r *inmemoryRegistry) SetUnitTargetState(unitname string, targetState pb.TargetState) bool {
+	defer debug.Exit_(debug.Enter_(unitname, targetState))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if u, exists := r.unitsCache[unitname]; exists {
 		u.DesiredState = targetState
 		r.unitsCache[unitname] = u
@@ -159,6 +212,10 @@ func (r *inmemoryRegistry) SetUnitTargetState(unitname string, targetState pb.Ta
 }
 
 func (r *inmemoryRegistry) CreateUnit(u *pb.Unit) {
+	defer debug.Exit_(debug.Enter_(u))
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.unitsCache[u.Name] = *u
 }
 
