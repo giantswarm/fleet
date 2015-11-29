@@ -16,7 +16,6 @@ package agent
 
 import (
 	"encoding/json"
-	"reflect"
 	"sync"
 	"time"
 
@@ -179,10 +178,40 @@ func (p *UnitStatePublisher) updateCache(update *unit.UnitStateHeartbeat) (chang
 	last, ok := p.cache[update.Name]
 	p.cache[update.Name] = update.State
 
-	if !ok || !reflect.DeepEqual(last, update.State) {
+	// if !ok || !reflect.DeepEqual(last, update.State) {
+	if !ok || !unitStateEquals(last, update.State) {
 		changed = true
 	}
 	return
+}
+
+func unitStateEquals(a, b *unit.UnitState) bool {
+	if a == b {
+		return true
+	}
+	if a == nil {
+		return false
+	}
+	if b == nil {
+		return false
+	}
+	if a.LoadState != b.LoadState {
+		return false
+	}
+	if a.ActiveState != b.ActiveState {
+		return false
+	}
+	if a.SubState != b.SubState {
+		return false
+	}
+	if a.MachineID != b.MachineID {
+		return false
+	}
+	if a.UnitHash != b.UnitHash {
+		return false
+	}
+
+	return true
 }
 
 // Purge ensures that the UnitStates for all Units known in the
