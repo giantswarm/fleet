@@ -88,7 +88,7 @@ func (r *Reconciler) calculateClusterTasks(clust *clusterState, stopchan chan st
 				continue
 			}
 
-			decide := func() (unschedule bool, reason string) {
+			shouldUnschedule := func() (unschedule bool, reason string) {
 				if j.TargetState == job.JobStateInactive {
 					unschedule = true
 					reason = "target state inactive"
@@ -112,7 +112,7 @@ func (r *Reconciler) calculateClusterTasks(clust *clusterState, stopchan chan st
 				return
 			}
 
-			unschedule, reason := decide()
+			unschedule, reason := shouldUnschedule()
 			if !unschedule {
 				continue
 			}
