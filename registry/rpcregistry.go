@@ -183,30 +183,29 @@ func (r *RPCRegistry) getClient() rpc.RegistryClient {
 }
 
 func (r *RPCRegistry) ClearUnitHeartbeat(name string) {
-	fmt.Println("XRPCC", "ClearUnitHeartbeat()", name)
-	//r.etcdRegistry.ClearUnitHeartbeat(name)
-	//return
+	defer debug.Exit_(debug.Enter_(name))
+
 	r.getClient().ClearUnitHeartbeat(r.ctx(), &rpc.UnitName{name})
 }
 
 func (r *RPCRegistry) CreateUnit(j *job.Unit) error {
-	fmt.Println("XRPCC", "CreateUnit()", j)
-	//return r.etcdRegistry.CreateUnit(j)
+	defer debug.Exit_(debug.Enter_(j.Name))
+
 	un := j.ToPB()
 	_, err := r.getClient().CreateUnit(r.ctx(), &un)
 	return err
 }
 
 func (r *RPCRegistry) DestroyUnit(name string) error {
-	fmt.Println("XRPCC", "DestroyUnit()", name)
-	//return r.etcdRegistry.DestroyUnit(name)
+	defer debug.Exit_(debug.Enter_(name))
+
 	_, err := r.getClient().DestroyUnit(r.ctx(), &rpc.UnitName{name})
 	return err
 }
 
 func (r *RPCRegistry) UnitHeartbeat(name, machID string, ttl time.Duration) error {
-	fmt.Println("XRPCC", "UnitHeartbeat()", name, machID)
-	//return r.etcdRegistry.UnitHeartbeat(name, machID, ttl)
+	defer debug.Exit_(debug.Enter_(name, machID))
+
 	_, err := r.getClient().UnitHeartbeat(r.ctx(), &rpc.Heartbeat{
 		Name:    name,
 		Machine: machID,
@@ -227,12 +226,11 @@ func (r *RPCRegistry) RemoveUnitState(name string) error {
 }
 
 func (r *RPCRegistry) SaveUnitState(name string, unitState *unit.UnitState, ttl time.Duration) {
-	//r.etcdRegistry.SaveUnitState(name, unitState, ttl)
-	//return
+	defer debug.Exit_(debug.Enter_(name, unitState))
+
 	if unitState.UnitName == "" {
 		unitState.UnitName = name
 	}
-	fmt.Println("XRPCC", "SaveUnitState()", name, unitState)
 
 	r.getClient().SaveUnitState(r.ctx(), &rpc.SaveUnitStateRequest{
 		Name:  name,
@@ -242,8 +240,8 @@ func (r *RPCRegistry) SaveUnitState(name string, unitState *unit.UnitState, ttl 
 }
 
 func (r *RPCRegistry) ScheduleUnit(name, machID string) error {
-	fmt.Println("XRPCC", "ScheduleUnit()", name, machID)
-	//return r.etcdRegistry.ScheduleUnit(name, machID)
+	defer debug.Exit_(debug.Enter_(name, machID))
+
 	_, err := r.getClient().ScheduleUnit(r.ctx(), &rpc.ScheduleUnitRequest{
 		Name:    name,
 		Machine: machID,
@@ -252,8 +250,8 @@ func (r *RPCRegistry) ScheduleUnit(name, machID string) error {
 }
 
 func (r *RPCRegistry) SetUnitTargetState(name string, state job.JobState) error {
-	fmt.Println("XRPCC", "SetUnitTargetState()", name, state)
-	//return r.etcdRegistry.SetUnitTargetState(name, state)
+	defer debug.Exit_(debug.Enter_(name, state))
+
 	_, err := r.getClient().SetUnitTargetState(r.ctx(), &rpc.ScheduledUnit{
 		Name:         name,
 		CurrentState: state.ToPB(),
@@ -262,8 +260,8 @@ func (r *RPCRegistry) SetUnitTargetState(name string, state job.JobState) error 
 }
 
 func (r *RPCRegistry) UnscheduleUnit(name, machID string) error {
-	fmt.Println("XRPCC", "UnscheduleUnit()", name, machID)
-	//return r.etcdRegistry.UnscheduleUnit(name, machID)
+	defer debug.Exit_(debug.Enter_(name, machID))
+
 	_, err := r.getClient().UnscheduleUnit(r.ctx(), &rpc.UnscheduleUnitRequest{
 		Name:    name,
 		Machine: machID,
@@ -280,8 +278,8 @@ func (r *RPCRegistry) SetMachineState(ms machine.MachineState, ttl time.Duration
 }
 
 func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
-	fmt.Println("XRPCC", "Schedule()")
-	//return r.etcdRegistry.Schedule()
+	defer debug.Exit_(debug.Enter_())
+
 	scheduledUnits, err := r.getClient().GetScheduledUnits(r.ctx(), &rpc.UnitFilter{})
 	if err != nil {
 		fmt.Println("ERROR XXX", err)
@@ -301,8 +299,8 @@ func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
 }
 
 func (r *RPCRegistry) ScheduledUnit(name string) (*job.ScheduledUnit, error) {
-	fmt.Println("XRPCC", "ScheduleUnit()", name)
-	//return r.etcdRegistry.ScheduledUnit(name)
+	defer debug.Exit_(debug.Enter_(name))
+
 	maybeSchedUnit, err := r.getClient().GetScheduledUnit(r.ctx(), &rpc.UnitName{name})
 
 	if err != nil {
@@ -324,13 +322,8 @@ func (r *RPCRegistry) ScheduledUnit(name string) (*job.ScheduledUnit, error) {
 }
 
 func (r *RPCRegistry) Unit(name string) (*job.Unit, error) {
-	fmt.Println("XRPCC", "Unit()", name)
-	//zzunits, zzerr := r.etcdRegistry.Unit(name)
-	//fmt.Println("XRPCC Unit()", zzunits, zzerr)
-	//zunits, zerr := r.getClient().GetUnit(context.Background(), &rpc.UnitName{name})
-	//fmt.Println("XRPCC Unit()", zunits, zerr)
+	defer debug.Exit_(debug.Enter_(name))
 
-	//return r.etcdRegistry.Unit(name)
 	maybeUnit, err := r.getClient().GetUnit(r.ctx(), &rpc.UnitName{name})
 	if err != nil {
 		return nil, err
@@ -338,18 +331,17 @@ func (r *RPCRegistry) Unit(name string) (*job.Unit, error) {
 
 	if unit := maybeUnit.GetUnit(); unit != nil {
 		ur := rpcUnitToJobUnit(unit)
-		fmt.Println("XRPCC Unit()", ur, err)
-		//fmt.Println("XDATA CLIENT", "Unit()", ur)
-		return ur, err
+		return ur, nil
 	}
 	return nil, nil
 }
 
 func (r *RPCRegistry) Units() ([]job.Unit, error) {
-	fmt.Println("XRPCC", "Units()")
+	defer debug.Exit_(debug.Enter_())
+
 	units, err := r.getClient().GetUnits(r.ctx(), &rpc.UnitFilter{})
 	if err != nil {
-		fmt.Println("ERROR XXX", err)
+		//TODO XXX ERROR me
 		return []job.Unit{}, err
 	}
 
@@ -362,8 +354,7 @@ func (r *RPCRegistry) Units() ([]job.Unit, error) {
 }
 
 func (r *RPCRegistry) UnitStates() ([]*unit.UnitState, error) {
-	//return r.etcdRegistry.UnitStates()
-	fmt.Println("XRPCC", "UnitStates()")
+	defer debug.Exit_(debug.Enter_())
 
 	unitStates, err := r.getClient().GetUnitStates(r.ctx(), &rpc.UnitStateFilter{})
 	if err != nil {
@@ -381,7 +372,6 @@ func (r *RPCRegistry) UnitStates() ([]*unit.UnitState, error) {
 			ActiveState: state.ActiveState,
 			SubState:    state.SubState,
 		}
-		//fmt.Println("XENGINE", state, nUnitStates)
 	}
 	return nUnitStates, nil
 }
