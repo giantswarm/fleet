@@ -1,43 +1,12 @@
 package registry
 
 import (
-	"fmt"
-	"time"
-
 	sdunit "github.com/coreos/go-systemd/unit"
 
 	"github.com/coreos/fleet/job"
 	pb "github.com/coreos/fleet/rpc"
 	"github.com/coreos/fleet/unit"
 )
-
-type unitHeartbeat struct {
-	deadline         time.Time
-	launchedDeadline time.Time
-	state            *pb.UnitState
-	machine          string
-}
-
-func (u unitHeartbeat) isValid() bool {
-	return u.deadline.After(time.Now())
-}
-
-func (u unitHeartbeat) isLaunchedValid() bool {
-	return u.deadline.After(time.Now()) && u.launchedDeadline.After(time.Now())
-}
-
-func (u *unitHeartbeat) beat(machine string, ttl time.Duration) {
-	fmt.Println("XDATA beat", u.state.Name, machine)
-	u.deadline = time.Now().Add(ttl)
-	u.machine = machine
-}
-
-func (u *unitHeartbeat) beatLaunched(machine string, ttl time.Duration) {
-	fmt.Println("XDATA beatLaunched", u.state.Name, machine)
-	u.deadline = time.Now().Add(ttl)
-	u.launchedDeadline = time.Now().Add(ttl)
-	u.machine = machine
-}
 
 func (s *rpcserver) notifyMachine(machine string, units []string) {
 	if ch, exists := s.machinesDirectory[machine]; exists {

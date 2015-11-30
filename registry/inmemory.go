@@ -12,16 +12,22 @@ import (
 type inmemoryRegistry struct {
 	unitsCache     map[string]pb.Unit
 	scheduledUnits map[string]pb.ScheduledUnit
-	unitHeartbeats map[string]*unitHeartbeat
+	unitHeartbeats map[string]map[string]time.Time
+	unitStates     map[string]map[string]*unitStateHeartbeat
 	mu             *sync.RWMutex
+	heartbeatsMu   *sync.RWMutex
+	unitStatesMu   *sync.RWMutex
 }
 
 func newInmemoryRegistry() *inmemoryRegistry {
 	return &inmemoryRegistry{
 		unitsCache:     map[string]pb.Unit{},
 		scheduledUnits: map[string]pb.ScheduledUnit{},
-		unitHeartbeats: map[string]*unitHeartbeat{},
+		unitHeartbeats: map[string]map[string]time.Time{},
+		unitStates:     map[string]map[string]*unitStateHeartbeat{},
 		mu:             new(sync.RWMutex),
+		heartbeatsMu:   new(sync.RWMutex),
+		unitStatesMu:   new(sync.RWMutex),
 	}
 }
 
@@ -46,7 +52,6 @@ func (r *inmemoryRegistry) LoadFrom(reg UnitRegistry) error {
 	}
 
 	return nil
-
 }
 
 func (r *inmemoryRegistry) Schedule() (units []pb.ScheduledUnit, err error) {
@@ -57,7 +62,7 @@ func (r *inmemoryRegistry) Schedule() (units []pb.ScheduledUnit, err error) {
 	units = make([]pb.ScheduledUnit, 0, len(r.scheduledUnits))
 	for _, schedUnit := range r.scheduledUnits {
 		su := schedUnit
-		su.CurrentState = r.getScheduledUnitState(su.Name)
+		su.CurrentState = r.getScheduledUnitState(su.Name, su.Machine)
 		units = append(units, su)
 	}
 	return units, nil
@@ -70,7 +75,7 @@ func (r *inmemoryRegistry) ScheduledUnit(name string) (unit *pb.ScheduledUnit, e
 
 	if schedUnit, exists := r.scheduledUnits[name]; exists {
 		su := &schedUnit
-		su.CurrentState = r.getScheduledUnitState(name)
+		su.CurrentState = r.getScheduledUnitState(name, schedUnit.Machine)
 		return su, true
 	}
 	return nil, false
@@ -105,8 +110,8 @@ func (r *inmemoryRegistry) Units() []pb.Unit {
 
 func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
 	defer debug.Exit_(debug.Enter_())
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.unitStatesMu.Lock()
+	defer r.unitStatesMu.Unlock()
 
 	states := []*pb.UnitState{}
 	mus := r.statesByMUSKey()
@@ -126,11 +131,11 @@ func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
 
 func (r *inmemoryRegistry) ClearUnitHeartbeat(name string) {
 	defer debug.Exit_(debug.Enter_(name))
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.heartbeatsMu.Lock()
+	defer r.heartbeatsMu.Unlock()
 
 	if _, exists := r.unitHeartbeats[name]; exists {
-		r.unitHeartbeats[name].launchedDeadline = time.Now()
+		delete(r.unitHeartbeats, name)
 	}
 }
 
@@ -158,23 +163,31 @@ func (r *inmemoryRegistry) RemoveUnitState(unitname string) {
 
 func (r *inmemoryRegistry) SaveUnitState(unitname string, state *pb.UnitState, ttl time.Duration) {
 	defer debug.Exit_(debug.Enter_(unitname, state))
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.unitStatesMu.Lock()
+	defer r.unitStatesMu.Unlock()
 
-	r.unitHeartbeats[unitname] = &unitHeartbeat{
+	statebeat := &unitStateHeartbeat{
 		state:    state,
-		machine:  state.Machine,
 		deadline: time.Now().Add(ttl),
 	}
+
+	if _, exists := r.unitStates[unitname]; exists {
+		r.unitStates[unitname][state.Machine] = statebeat
+	} else {
+		r.unitStates[unitname] = map[string]*unitStateHeartbeat{state.Machine: statebeat}
+	}
+
 }
 
 func (r *inmemoryRegistry) UnitHeartbeat(unitname, machineid string, ttl time.Duration) {
 	defer debug.Exit_(debug.Enter_(unitname, machineid, ttl))
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.heartbeatsMu.Lock()
+	defer r.heartbeatsMu.Unlock()
 
 	if _, exists := r.unitHeartbeats[unitname]; exists {
-		r.unitHeartbeats[unitname].beatLaunched(machineid, ttl)
+		r.unitHeartbeats[unitname][machineid] = time.Now().Add(ttl)
+	} else {
+		r.unitHeartbeats[unitname] = map[string]time.Time{machineid: time.Now().Add(ttl)}
 	}
 }
 
@@ -221,34 +234,52 @@ func (r *inmemoryRegistry) CreateUnit(u *pb.Unit) {
 
 func (r *inmemoryRegistry) statesByMUSKey() map[MUSKey]*pb.UnitState {
 	states := map[MUSKey]*pb.UnitState{}
-	for name, heartbeat := range r.unitHeartbeats {
-		if !heartbeat.isValid() {
-			continue
-		}
-		k := MUSKey{
-			name:   name,
-			machID: heartbeat.machine,
-		}
 
-		state := *heartbeat.state
+	for unitname, unitStates := range r.unitStates {
+		for machineID, heartbeat := range unitStates {
+			if heartbeat.isValid() {
+				k := MUSKey{
+					name:   unitname,
+					machID: machineID,
+				}
+				s := *heartbeat.state
+				states[k] = &s
 
-		states[k] = &state
+			}
+		}
 	}
+
 	return states
 }
 
-func (r *inmemoryRegistry) getScheduledUnitState(unitName string) pb.TargetState {
-	if heartbeat, hasHeartbeat := r.unitHeartbeats[unitName]; hasHeartbeat {
-		if r.isScheduled(unitName, heartbeat.machine) {
-			if heartbeat.isLaunchedValid() {
-				return pb.TargetState_LAUNCHED
-			}
-			if heartbeat.isValid() {
-				return pb.TargetState_LOADED
-			}
+func (r *inmemoryRegistry) isUnitLoaded(unitName, machineID string) bool {
+	if _, exists := r.unitStates[unitName]; exists {
+		if _, exists := r.unitStates[unitName][machineID]; exists {
+			return true
 		}
 	}
-	return pb.TargetState_INACTIVE
+	return false
+}
+
+func (r *inmemoryRegistry) isUnitLaunched(unitName, machineID string) bool {
+	if _, exists := r.unitHeartbeats[unitName]; exists {
+		if _, exists := r.unitHeartbeats[unitName][machineID]; exists {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *inmemoryRegistry) getScheduledUnitState(unitName, machineID string) pb.TargetState {
+	if r.isUnitLoaded(unitName, machineID) {
+		if r.isUnitLaunched(unitName, machineID) {
+			return pb.TargetState_LAUNCHED
+		} else {
+			return pb.TargetState_LOADED
+		}
+	} else {
+		return pb.TargetState_INACTIVE
+	}
 }
 
 func (r *inmemoryRegistry) isScheduled(unitName, machine string) bool {
@@ -259,4 +290,24 @@ func (r *inmemoryRegistry) isScheduled(unitName, machine string) bool {
 		return s.Machine == machine
 	}
 	return false
+}
+
+type unitStateHeartbeat struct {
+	deadline time.Time
+	state    *pb.UnitState
+}
+
+type unitHeartbeat struct {
+	deadline         time.Time
+	launchedDeadline time.Time
+	state            *pb.UnitState
+	machine          string
+}
+
+func (u *unitStateHeartbeat) isValid() bool {
+	return u.deadline.After(time.Now())
+}
+
+func (u *unitStateHeartbeat) beat(machine string, ttl time.Duration) {
+	u.deadline = time.Now().Add(ttl)
 }
