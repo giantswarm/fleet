@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"encoding/json"
+	"net/http"
 	"sort"
 	"sync"
 	"time"
@@ -20,7 +22,7 @@ type inmemoryRegistry struct {
 }
 
 func newInmemoryRegistry() *inmemoryRegistry {
-	return &inmemoryRegistry{
+	r := &inmemoryRegistry{
 		unitsCache:     map[string]pb.Unit{},
 		scheduledUnits: map[string]pb.ScheduledUnit{},
 		unitHeartbeats: map[string]map[string]time.Time{},
@@ -29,7 +31,38 @@ func newInmemoryRegistry() *inmemoryRegistry {
 		heartbeatsMu:   new(sync.RWMutex),
 		unitStatesMu:   new(sync.RWMutex),
 	}
+
+	if debug.Enabled {
+		latestReg = r
+	}
+
+	return r
 }
+
+func init() {
+	debug.Enabled = true
+	if debug.Enabled {
+		http.Handle("/fleet/inmemory", http.HandlerFunc(dbgHandler))
+	}
+}
+
+func dbgHandler(w http.ResponseWriter, r *http.Request) {
+	if latestReg == nil {
+		return
+	}
+	e := json.NewEncoder(w)
+
+	data := map[string]interface{}{
+		"Units":          latestReg.unitsCache,
+		"ScheduledUnits": latestReg.scheduledUnits,
+		"Heartbeats":     latestReg.unitHeartbeats,
+		"States":         latestReg.unitStates,
+	}
+
+	e.Encode(data)
+}
+
+var latestReg *inmemoryRegistry
 
 func (r *inmemoryRegistry) LoadFrom(reg UnitRegistry) error {
 	r.mu.Lock()
@@ -143,21 +176,40 @@ func (r *inmemoryRegistry) DestroyUnit(name string) bool {
 	defer debug.Exit_(debug.Enter_(name))
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.unitStatesMu.Lock()
+	defer r.unitStatesMu.Unlock()
+	r.heartbeatsMu.Lock()
+	defer r.heartbeatsMu.Unlock()
+
+	deleted := false
 
 	if _, exists := r.unitsCache[name]; exists {
 		delete(r.unitsCache, name)
-		return true
+		deleted = true
 	}
-	return false
+
+	if _, exists := r.scheduledUnits[name]; exists {
+		delete(r.scheduledUnits, name)
+	}
+
+	if _, exists := r.unitHeartbeats[name]; exists {
+		delete(r.unitHeartbeats, name)
+	}
+
+	if _, exists := r.unitStates[name]; exists {
+		delete(r.unitStates, name)
+	}
+
+	return deleted
 }
 
 func (r *inmemoryRegistry) RemoveUnitState(unitname string) {
 	defer debug.Exit_(debug.Enter_(unitname))
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.unitStatesMu.Lock()
+	defer r.unitStatesMu.Unlock()
 
-	if _, exists := r.unitHeartbeats[unitname]; exists {
-		delete(r.unitHeartbeats, unitname)
+	if _, exists := r.unitStates[unitname]; exists {
+		delete(r.unitStates, unitname)
 	}
 }
 

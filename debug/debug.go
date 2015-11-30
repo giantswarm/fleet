@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var Enabled bool
+
 func genRandomID() string {
 	c := 5
 	b := make([]byte, c)
