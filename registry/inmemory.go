@@ -128,7 +128,7 @@ func (r *inmemoryRegistry) Units() []pb.Unit {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	units := make([]pb.Unit, len(r.unitsCache))
+	units := make([]pb.Unit, 0, len(r.unitsCache))
 	unitNames := make([]string, 0, len(r.unitsCache))
 	for k, _ := range r.unitsCache {
 		unitNames = append(unitNames, k)
@@ -138,6 +138,7 @@ func (r *inmemoryRegistry) Units() []pb.Unit {
 		u := r.unitsCache[unitName]
 		units = append(units, u)
 	}
+
 	return units
 }
 
