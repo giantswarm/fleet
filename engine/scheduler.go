@@ -27,12 +27,12 @@ type decision struct {
 }
 
 type Scheduler interface {
-	Decide(*clusterState, *job.Job) (*decision, error)
+	Decide(*clusterState, ...*job.Job) (*decision, error)
 }
 
 type leastLoadedScheduler struct{}
 
-func (lls *leastLoadedScheduler) Decide(clust *clusterState, j *job.Job) (*decision, error) {
+func (lls *leastLoadedScheduler) Decide(clust *clusterState, jobs ...*job.Job) (*decision, error) {
 	agents := lls.sortedAgents(clust)
 
 	if len(agents) == 0 {
@@ -41,7 +41,7 @@ func (lls *leastLoadedScheduler) Decide(clust *clusterState, j *job.Job) (*decis
 
 	var target *agent.AgentState
 	for _, as := range agents {
-		if able, _ := as.AbleToRun(j); !able {
+		if able, _ := as.AbleToRun(jobs...); !able {
 			continue
 		}
 
@@ -84,4 +84,71 @@ func (sas sortableAgentStates) Less(i, j int) bool {
 	niUnits := len(sas[i].Units)
 	njUnits := len(sas[j].Units)
 	return niUnits < njUnits || (niUnits == njUnits && sas[i].MState.ID < sas[j].MState.ID)
+}
+
+type jobsList []*job.Job
+
+func (jobslist jobsList) GroupByPeers() [][]string {
+	deps := map[string]*job.Job{}
+	for _, j := range jobslist {
+		deps[j.Name] = j
+	}
+
+	toVisit := map[string]struct{}{}
+	for k, _ := range deps {
+		toVisit[k] = struct{}{}
+	}
+
+	popOne := func() string {
+		for k, _ := range toVisit {
+			delete(toVisit, k)
+			return k
+		}
+		return ""
+	}
+
+	groups := [][]string{}
+
+	for {
+		if len(toVisit) == 0 {
+			break
+		}
+
+		lead := deps[popOne()]
+
+		currentGroup := []string{lead.Name}
+
+		inCurrentGroup := func(n string) bool {
+			for _, v := range currentGroup {
+				if v == n {
+					return true
+				}
+			}
+			return false
+		}
+
+		depsToCheck := lead.Peers()
+		for {
+			if len(depsToCheck) == 0 {
+				break
+			}
+			d := depsToCheck[0]
+			depsToCheck = depsToCheck[1:]
+
+			if _, exists := deps[d]; exists {
+				for _, deepDep := range deps[d].Peers() {
+					if !inCurrentGroup(deepDep) {
+						depsToCheck = append(depsToCheck, deepDep)
+					}
+				}
+
+			}
+
+			currentGroup = append(currentGroup, d)
+			delete(toVisit, d)
+		}
+		groups = append(groups, currentGroup)
+	}
+
+	return groups
 }
