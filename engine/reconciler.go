@@ -125,60 +125,64 @@ func (r *Reconciler) calculateClusterTasks(clust *clusterState, stopchan chan st
 			clust.unschedule(j.Name)
 		}
 
-		jobslist := jobsList{}
+		if 1 == 2 {
+
+			jobslist := jobsList{}
+
+			for _, j := range clust.jobs {
+				if j.Scheduled() || j.TargetState == job.JobStateInactive {
+					continue
+				}
+				jobslist = append(jobslist, j)
+			}
+
+			groups := jobslist.GroupByPeers()
+
+			for _, group := range groups {
+				jobgroup := make([]*job.Job, 0, len(group))
+				for _, jobname := range group {
+					j := clust.jobs[jobname]
+					if j != nil {
+						jobgroup = append(jobgroup, clust.jobs[jobname])
+					}
+				}
+
+				dec, err := r.sched.Decide(clust, jobgroup...)
+				if err != nil {
+					log.Debugf("Unable to schedule Jobs(%s): %v", strings.Join(group, ","), err)
+					continue
+				}
+
+				for _, j := range jobgroup {
+					reason := fmt.Sprintf("target state %s and unit not scheduled", j.TargetState)
+					if !send(taskTypeAttemptScheduleUnit, reason, j.Name, dec.machineID) {
+						return
+					}
+					clust.schedule(j.Name, dec.machineID)
+				}
+
+			}
+		}
 
 		for _, j := range clust.jobs {
 			if j.Scheduled() || j.TargetState == job.JobStateInactive {
 				continue
 			}
-			jobslist = append(jobslist, j)
-		}
 
-		groups := jobslist.GroupByPeers()
-
-		for _, group := range groups {
-			jobgroup := make([]*job.Job, 0, len(group))
-			for _, jobname := range group {
-				j := clust.jobs[jobname]
-				if j != nil {
-					jobgroup = append(jobgroup, clust.jobs[jobname])
-				}
-			}
-
-			dec, err := r.sched.Decide(clust, jobgroup...)
+			dec, err := r.sched.Decide(clust, j)
 			if err != nil {
-				log.Debugf("Unable to schedule Jobs(%s): %v", strings.Join(group, ","), err)
+				log.Debugf("Unable to schedule Jobs(%s): %v", j.Name, err)
 				continue
 			}
 
-			for _, j := range jobgroup {
-				reason := fmt.Sprintf("target state %s and unit not scheduled", j.TargetState)
-				if !send(taskTypeAttemptScheduleUnit, reason, j.Name, dec.machineID) {
-					return
-				}
-				clust.schedule(j.Name, dec.machineID)
+			reason := fmt.Sprintf("target state %s and unit not scheduled", j.TargetState)
+			if !send(taskTypeAttemptScheduleUnit, reason, j.Name, dec.machineID) {
+				return
 			}
+			clust.schedule(j.Name, dec.machineID)
 
-			// }
-
-			// for _, j := range clust.jobs {
-			// 	if j.Scheduled() || j.TargetState == job.JobStateInactive {
-			// 		continue
-			// 	}
-
-			// 	dec, err := r.sched.Decide(clust, j)
-			// 	if err != nil {
-			// 		log.Debugf("Unable to schedule Job(%s): %v", j.Name, err)
-			// 		continue
-			// 	}
-
-			// 	reason := fmt.Sprintf("target state %s and unit not scheduled", j.TargetState)
-			// 	if !send(taskTypeAttemptScheduleUnit, reason, j.Name, dec.machineID) {
-			// 		return
-			// 	}
-
-			// 	clust.schedule(j.Name, dec.machineID)
 		}
+
 	}()
 
 	return
