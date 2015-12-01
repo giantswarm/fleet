@@ -81,29 +81,40 @@ func globMatches(pattern, target string) bool {
 //   - Agent must have all of the Job's required metadata (if any)
 //   - Agent must have all required Peers of the Job scheduled locally (if any)
 //   - Job must not conflict with any other Units scheduled to the agent
-func (as *AgentState) AbleToRun(j *job.Job) (bool, string) {
-	if tgt, ok := j.RequiredTarget(); ok && !as.MState.MatchID(tgt) {
-		return false, fmt.Sprintf("agent ID %q does not match required %q", as.MState.ID, tgt)
-	}
-
-	metadata := j.RequiredTargetMetadata()
-	if len(metadata) != 0 {
-		if !machine.HasMetadata(as.MState, metadata) {
-			return false, "local Machine metadata insufficient"
-		}
-	}
-
-	peers := j.Peers()
-	if len(peers) != 0 {
-		for _, peer := range peers {
-			if !as.unitScheduled(peer) {
-				return false, fmt.Sprintf("required peer Unit(%s) is not scheduled locally", peer)
+func (as *AgentState) AbleToRun(jobs ...*job.Job) (bool, string) {
+	peerInGroup := func(peer string) bool {
+		for _, j := range jobs {
+			if j != nil && j.Name == peer {
+				return true
 			}
 		}
+		return false
 	}
 
-	if cExists, cJobName := as.hasConflict(j.Name, j.Conflicts()); cExists {
-		return false, fmt.Sprintf("found conflict with locally-scheduled Unit(%s)", cJobName)
+	for _, j := range jobs {
+		if tgt, ok := j.RequiredTarget(); ok && !as.MState.MatchID(tgt) {
+			return false, fmt.Sprintf("agent ID %q does not match required %q", as.MState.ID, tgt)
+		}
+
+		metadata := j.RequiredTargetMetadata()
+		if len(metadata) != 0 {
+			if !machine.HasMetadata(as.MState, metadata) {
+				return false, "local Machine metadata insufficient"
+			}
+		}
+
+		peers := j.Peers()
+		if len(peers) != 0 {
+			for _, peer := range peers {
+				if !as.unitScheduled(peer) && !peerInGroup(peer) {
+					return false, fmt.Sprintf("required peer Unit(%s) is not scheduled locally", peer)
+				}
+			}
+		}
+
+		if cExists, cJobName := as.hasConflict(j.Name, j.Conflicts()); cExists {
+			return false, fmt.Sprintf("found conflict with locally-scheduled Unit(%s)", cJobName)
+		}
 	}
 
 	return true, ""
