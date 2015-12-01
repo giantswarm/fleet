@@ -185,6 +185,10 @@ func (u *Unit) RequiredTargetMetadata() map[string]pkg.Set {
 // This prefix is stripped from relevant options before being returned.
 // Furthermore, specifier substitution (using unitPrintf) is performed on all requirements.
 func (j *Job) requirements() map[string][]string {
+	if cachedRequirements := jobRequirementsCache.get(j.Name, j.Unit.HashStr); cachedRequirements != nil {
+		return cachedRequirements
+	}
+
 	uni := unit.NewUnitNameInfo(j.Name)
 	requirements := make(map[string][]string)
 	for key, values := range j.Unit.Contents["X-Fleet"] {
@@ -199,6 +203,8 @@ func (j *Job) requirements() map[string][]string {
 		}
 		requirements[key] = values
 	}
+
+	jobRequirementsCache.cache(j.Name, j.Unit.HashStr, requirements)
 
 	return requirements
 }

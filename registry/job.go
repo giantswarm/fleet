@@ -327,7 +327,7 @@ func (r *EtcdRegistry) CreateUnit(u *job.Unit) (err error) {
 
 	jm := jobModel{
 		Name:     u.Name,
-		UnitHash: u.Unit.Hash(),
+		UnitHash: u.Unit.Hash,
 	}
 	val, err := marshal(jm)
 	if err != nil {

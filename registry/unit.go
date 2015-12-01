@@ -37,7 +37,7 @@ func (r *EtcdRegistry) storeOrGetUnitFile(u unit.UnitFile) (err error) {
 		return err
 	}
 
-	key := r.hashedUnitPath(u.Hash())
+	key := r.hashedUnitPath(u.Hash)
 	opts := &etcd.SetOptions{
 		PrevExist: etcd.PrevNoExist,
 	}

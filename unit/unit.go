@@ -36,7 +36,13 @@ func NewUnitFile(raw string) (*UnitFile, error) {
 }
 
 func NewUnitFromOptions(opts []*unit.UnitOption) *UnitFile {
-	return &UnitFile{mapOptions(opts), opts}
+	u := &UnitFile{
+		Contents: mapOptions(opts),
+		Options:  opts,
+	}
+	u.Hash = u.hash()
+	u.HashStr = u.Hash.String()
+	return u
 }
 
 func mapOptions(opts []*unit.UnitOption) map[string]map[string][]string {
@@ -106,6 +112,8 @@ func parseMultivalueLine(line string) (values []string) {
 // the filename, and in the case of fleet, the reference is the name of the Unit
 // that references this UnitFile.
 type UnitFile struct {
+	HashStr string
+	Hash    Hash
 	// Contents represents the parsed unit file.
 	// This field must be considered readonly.
 	Contents map[string]map[string][]string
@@ -132,7 +140,7 @@ func (u *UnitFile) String() string {
 }
 
 // Hash returns the SHA1 hash of the raw contents of the Unit
-func (u *UnitFile) Hash() Hash {
+func (u *UnitFile) hash() Hash {
 	return Hash(sha1.Sum(u.Bytes()))
 }
 

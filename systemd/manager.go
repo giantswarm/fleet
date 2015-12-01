@@ -94,7 +94,7 @@ func hashUnitFile(loc string) (unit.Hash, error) {
 		return unit.Hash{}, err
 	}
 
-	return uf.Hash(), nil
+	return uf.Hash, nil
 }
 
 // Load writes the given Unit to disk, subscribing to relevant dbus
@@ -106,7 +106,7 @@ func (m *systemdUnitManager) Load(name string, u unit.UnitFile) error {
 	if err != nil {
 		return err
 	}
-	m.hashes[name] = u.Hash()
+	m.hashes[name] = u.Hash
 	return nil
 }
 

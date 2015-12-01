@@ -201,7 +201,7 @@ func (ar *AgentReconciler) calculateTasksForUnit(dState *AgentState, cState unit
 	if dState != nil {
 		dJob = dState.Units[jName]
 		if dJob != nil {
-			dJHash = dJob.Unit.Hash().String()
+			dJHash = dJob.Unit.Hash.String()
 		}
 	}
 	var cJState *job.JobState
