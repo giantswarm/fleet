@@ -96,30 +96,30 @@ type UnitStateFilter struct {
 	LoadState   string `protobuf:"bytes,3,opt,name=load_state,proto3" json:"load_state,omitempty"`
 	ActiveState string `protobuf:"bytes,4,opt,name=active_state,proto3" json:"active_state,omitempty"`
 	SubState    string `protobuf:"bytes,5,opt,name=sub_state,proto3" json:"sub_state,omitempty"`
-	Machine     string `protobuf:"bytes,6,opt,name=machine,proto3" json:"machine,omitempty"`
+	MachineID   string `protobuf:"bytes,6,opt,name=machine_id,proto3" json:"machine_id,omitempty"`
 }
 
 func (m *UnitStateFilter) Reset()      { *m = UnitStateFilter{} }
 func (*UnitStateFilter) ProtoMessage() {}
 
 type UnitFilter struct {
-	Machine string `protobuf:"bytes,1,opt,name=machine,proto3" json:"machine,omitempty"`
+	MachineID string `protobuf:"bytes,1,opt,name=machine_id,proto3" json:"machine_id,omitempty"`
 }
 
 func (m *UnitFilter) Reset()      { *m = UnitFilter{} }
 func (*UnitFilter) ProtoMessage() {}
 
 type ScheduleUnitRequest struct {
-	Name    string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Machine string `protobuf:"bytes,2,opt,name=machine,proto3" json:"machine,omitempty"`
+	Name      string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	MachineID string `protobuf:"bytes,2,opt,name=machine_id,proto3" json:"machine_id,omitempty"`
 }
 
 func (m *ScheduleUnitRequest) Reset()      { *m = ScheduleUnitRequest{} }
 func (*ScheduleUnitRequest) ProtoMessage() {}
 
 type UnscheduleUnitRequest struct {
-	Name    string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Machine string `protobuf:"bytes,2,opt,name=machine,proto3" json:"machine,omitempty"`
+	Name      string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	MachineID string `protobuf:"bytes,2,opt,name=machine_id,proto3" json:"machine_id,omitempty"`
 }
 
 func (m *UnscheduleUnitRequest) Reset()      { *m = UnscheduleUnitRequest{} }
@@ -142,9 +142,9 @@ func (m *SaveUnitStateRequest) GetState() *UnitState {
 }
 
 type Heartbeat struct {
-	Name    string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Machine string `protobuf:"bytes,2,opt,name=machine,proto3" json:"machine,omitempty"`
-	TTL     int32  `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	Name      string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	MachineID string `protobuf:"bytes,2,opt,name=machine_id,proto3" json:"machine_id,omitempty"`
+	TTL       int32  `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
 }
 
 func (m *Heartbeat) Reset()      { *m = Heartbeat{} }
@@ -190,7 +190,7 @@ type UnitState struct {
 	LoadState   string `protobuf:"bytes,3,opt,name=load_state,proto3" json:"load_state,omitempty"`
 	ActiveState string `protobuf:"bytes,4,opt,name=active_state,proto3" json:"active_state,omitempty"`
 	SubState    string `protobuf:"bytes,5,opt,name=sub_state,proto3" json:"sub_state,omitempty"`
-	Machine     string `protobuf:"bytes,6,opt,name=machine,proto3" json:"machine,omitempty"`
+	MachineID   string `protobuf:"bytes,6,opt,name=machine_id,proto3" json:"machine_id,omitempty"`
 }
 
 func (m *UnitState) Reset()      { *m = UnitState{} }
@@ -213,7 +213,7 @@ func (m *ScheduledUnits) GetUnits() []ScheduledUnit {
 type ScheduledUnit struct {
 	Name         string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	CurrentState TargetState `protobuf:"varint,2,opt,name=current_state,proto3,enum=rpc.TargetState" json:"current_state,omitempty"`
-	Machine      string      `protobuf:"bytes,3,opt,name=machine,proto3" json:"machine,omitempty"`
+	MachineID    string      `protobuf:"bytes,3,opt,name=machine_id,proto3" json:"machine_id,omitempty"`
 }
 
 func (m *ScheduledUnit) Reset()      { *m = ScheduledUnit{} }
@@ -594,7 +594,7 @@ func (this *UnitStateFilter) Equal(that interface{}) bool {
 	if this.SubState != that1.SubState {
 		return false
 	}
-	if this.Machine != that1.Machine {
+	if this.MachineID != that1.MachineID {
 		return false
 	}
 	return true
@@ -619,7 +619,7 @@ func (this *UnitFilter) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if this.Machine != that1.Machine {
+	if this.MachineID != that1.MachineID {
 		return false
 	}
 	return true
@@ -647,7 +647,7 @@ func (this *ScheduleUnitRequest) Equal(that interface{}) bool {
 	if this.Name != that1.Name {
 		return false
 	}
-	if this.Machine != that1.Machine {
+	if this.MachineID != that1.MachineID {
 		return false
 	}
 	return true
@@ -675,7 +675,7 @@ func (this *UnscheduleUnitRequest) Equal(that interface{}) bool {
 	if this.Name != that1.Name {
 		return false
 	}
-	if this.Machine != that1.Machine {
+	if this.MachineID != that1.MachineID {
 		return false
 	}
 	return true
@@ -734,7 +734,7 @@ func (this *Heartbeat) Equal(that interface{}) bool {
 	if this.Name != that1.Name {
 		return false
 	}
-	if this.Machine != that1.Machine {
+	if this.MachineID != that1.MachineID {
 		return false
 	}
 	if this.TTL != that1.TTL {
@@ -859,7 +859,7 @@ func (this *UnitState) Equal(that interface{}) bool {
 	if this.SubState != that1.SubState {
 		return false
 	}
-	if this.Machine != that1.Machine {
+	if this.MachineID != that1.MachineID {
 		return false
 	}
 	return true
@@ -920,7 +920,7 @@ func (this *ScheduledUnit) Equal(that interface{}) bool {
 	if this.CurrentState != that1.CurrentState {
 		return false
 	}
-	if this.Machine != that1.Machine {
+	if this.MachineID != that1.MachineID {
 		return false
 	}
 	return true
@@ -1257,7 +1257,7 @@ func (this *UnitStateFilter) GoString() string {
 	s = append(s, "LoadState: "+fmt.Sprintf("%#v", this.LoadState)+",\n")
 	s = append(s, "ActiveState: "+fmt.Sprintf("%#v", this.ActiveState)+",\n")
 	s = append(s, "SubState: "+fmt.Sprintf("%#v", this.SubState)+",\n")
-	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
+	s = append(s, "MachineID: "+fmt.Sprintf("%#v", this.MachineID)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1267,7 +1267,7 @@ func (this *UnitFilter) GoString() string {
 	}
 	s := make([]string, 0, 5)
 	s = append(s, "&rpc.UnitFilter{")
-	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
+	s = append(s, "MachineID: "+fmt.Sprintf("%#v", this.MachineID)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1278,7 +1278,7 @@ func (this *ScheduleUnitRequest) GoString() string {
 	s := make([]string, 0, 6)
 	s = append(s, "&rpc.ScheduleUnitRequest{")
 	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
-	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
+	s = append(s, "MachineID: "+fmt.Sprintf("%#v", this.MachineID)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1289,7 +1289,7 @@ func (this *UnscheduleUnitRequest) GoString() string {
 	s := make([]string, 0, 6)
 	s = append(s, "&rpc.UnscheduleUnitRequest{")
 	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
-	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
+	s = append(s, "MachineID: "+fmt.Sprintf("%#v", this.MachineID)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1314,7 +1314,7 @@ func (this *Heartbeat) GoString() string {
 	s := make([]string, 0, 7)
 	s = append(s, "&rpc.Heartbeat{")
 	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
-	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
+	s = append(s, "MachineID: "+fmt.Sprintf("%#v", this.MachineID)+",\n")
 	s = append(s, "TTL: "+fmt.Sprintf("%#v", this.TTL)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
@@ -1363,7 +1363,7 @@ func (this *UnitState) GoString() string {
 	s = append(s, "LoadState: "+fmt.Sprintf("%#v", this.LoadState)+",\n")
 	s = append(s, "ActiveState: "+fmt.Sprintf("%#v", this.ActiveState)+",\n")
 	s = append(s, "SubState: "+fmt.Sprintf("%#v", this.SubState)+",\n")
-	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
+	s = append(s, "MachineID: "+fmt.Sprintf("%#v", this.MachineID)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1387,7 +1387,7 @@ func (this *ScheduledUnit) GoString() string {
 	s = append(s, "&rpc.ScheduledUnit{")
 	s = append(s, "Name: "+fmt.Sprintf("%#v", this.Name)+",\n")
 	s = append(s, "CurrentState: "+fmt.Sprintf("%#v", this.CurrentState)+",\n")
-	s = append(s, "Machine: "+fmt.Sprintf("%#v", this.Machine)+",\n")
+	s = append(s, "MachineID: "+fmt.Sprintf("%#v", this.MachineID)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -2113,11 +2113,11 @@ func (m *UnitStateFilter) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.SubState)))
 		i += copy(data[i:], m.SubState)
 	}
-	if len(m.Machine) > 0 {
+	if len(m.MachineID) > 0 {
 		data[i] = 0x32
 		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
-		i += copy(data[i:], m.Machine)
+		i = encodeVarintFleet(data, i, uint64(len(m.MachineID)))
+		i += copy(data[i:], m.MachineID)
 	}
 	return i, nil
 }
@@ -2137,11 +2137,11 @@ func (m *UnitFilter) MarshalTo(data []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Machine) > 0 {
+	if len(m.MachineID) > 0 {
 		data[i] = 0xa
 		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
-		i += copy(data[i:], m.Machine)
+		i = encodeVarintFleet(data, i, uint64(len(m.MachineID)))
+		i += copy(data[i:], m.MachineID)
 	}
 	return i, nil
 }
@@ -2167,11 +2167,11 @@ func (m *ScheduleUnitRequest) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.Name)))
 		i += copy(data[i:], m.Name)
 	}
-	if len(m.Machine) > 0 {
+	if len(m.MachineID) > 0 {
 		data[i] = 0x12
 		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
-		i += copy(data[i:], m.Machine)
+		i = encodeVarintFleet(data, i, uint64(len(m.MachineID)))
+		i += copy(data[i:], m.MachineID)
 	}
 	return i, nil
 }
@@ -2197,11 +2197,11 @@ func (m *UnscheduleUnitRequest) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.Name)))
 		i += copy(data[i:], m.Name)
 	}
-	if len(m.Machine) > 0 {
+	if len(m.MachineID) > 0 {
 		data[i] = 0x12
 		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
-		i += copy(data[i:], m.Machine)
+		i = encodeVarintFleet(data, i, uint64(len(m.MachineID)))
+		i += copy(data[i:], m.MachineID)
 	}
 	return i, nil
 }
@@ -2266,11 +2266,11 @@ func (m *Heartbeat) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.Name)))
 		i += copy(data[i:], m.Name)
 	}
-	if len(m.Machine) > 0 {
+	if len(m.MachineID) > 0 {
 		data[i] = 0x12
 		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
-		i += copy(data[i:], m.Machine)
+		i = encodeVarintFleet(data, i, uint64(len(m.MachineID)))
+		i += copy(data[i:], m.MachineID)
 	}
 	if m.TTL != 0 {
 		data[i] = 0x18
@@ -2403,11 +2403,11 @@ func (m *UnitState) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintFleet(data, i, uint64(len(m.SubState)))
 		i += copy(data[i:], m.SubState)
 	}
-	if len(m.Machine) > 0 {
+	if len(m.MachineID) > 0 {
 		data[i] = 0x32
 		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
-		i += copy(data[i:], m.Machine)
+		i = encodeVarintFleet(data, i, uint64(len(m.MachineID)))
+		i += copy(data[i:], m.MachineID)
 	}
 	return i, nil
 }
@@ -2468,11 +2468,11 @@ func (m *ScheduledUnit) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintFleet(data, i, uint64(m.CurrentState))
 	}
-	if len(m.Machine) > 0 {
+	if len(m.MachineID) > 0 {
 		data[i] = 0x1a
 		i++
-		i = encodeVarintFleet(data, i, uint64(len(m.Machine)))
-		i += copy(data[i:], m.Machine)
+		i = encodeVarintFleet(data, i, uint64(len(m.MachineID)))
+		i += copy(data[i:], m.MachineID)
 	}
 	return i, nil
 }
@@ -2800,7 +2800,7 @@ func (m *UnitStateFilter) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	l = len(m.Machine)
+	l = len(m.MachineID)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
@@ -2810,7 +2810,7 @@ func (m *UnitStateFilter) Size() (n int) {
 func (m *UnitFilter) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.Machine)
+	l = len(m.MachineID)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
@@ -2824,7 +2824,7 @@ func (m *ScheduleUnitRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	l = len(m.Machine)
+	l = len(m.MachineID)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
@@ -2838,7 +2838,7 @@ func (m *UnscheduleUnitRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	l = len(m.Machine)
+	l = len(m.MachineID)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
@@ -2869,7 +2869,7 @@ func (m *Heartbeat) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	l = len(m.Machine)
+	l = len(m.MachineID)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
@@ -2932,7 +2932,7 @@ func (m *UnitState) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
-	l = len(m.Machine)
+	l = len(m.MachineID)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
@@ -2961,7 +2961,7 @@ func (m *ScheduledUnit) Size() (n int) {
 	if m.CurrentState != 0 {
 		n += 1 + sovFleet(uint64(m.CurrentState))
 	}
-	l = len(m.Machine)
+	l = len(m.MachineID)
 	if l > 0 {
 		n += 1 + l + sovFleet(uint64(l))
 	}
@@ -3126,7 +3126,7 @@ func (this *UnitStateFilter) String() string {
 		`LoadState:` + fmt.Sprintf("%v", this.LoadState) + `,`,
 		`ActiveState:` + fmt.Sprintf("%v", this.ActiveState) + `,`,
 		`SubState:` + fmt.Sprintf("%v", this.SubState) + `,`,
-		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
+		`MachineID:` + fmt.Sprintf("%v", this.MachineID) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3136,7 +3136,7 @@ func (this *UnitFilter) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&UnitFilter{`,
-		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
+		`MachineID:` + fmt.Sprintf("%v", this.MachineID) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3147,7 +3147,7 @@ func (this *ScheduleUnitRequest) String() string {
 	}
 	s := strings.Join([]string{`&ScheduleUnitRequest{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
+		`MachineID:` + fmt.Sprintf("%v", this.MachineID) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3158,7 +3158,7 @@ func (this *UnscheduleUnitRequest) String() string {
 	}
 	s := strings.Join([]string{`&UnscheduleUnitRequest{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
+		`MachineID:` + fmt.Sprintf("%v", this.MachineID) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3181,7 +3181,7 @@ func (this *Heartbeat) String() string {
 	}
 	s := strings.Join([]string{`&Heartbeat{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
+		`MachineID:` + fmt.Sprintf("%v", this.MachineID) + `,`,
 		`TTL:` + fmt.Sprintf("%v", this.TTL) + `,`,
 		`}`,
 	}, "")
@@ -3226,7 +3226,7 @@ func (this *UnitState) String() string {
 		`LoadState:` + fmt.Sprintf("%v", this.LoadState) + `,`,
 		`ActiveState:` + fmt.Sprintf("%v", this.ActiveState) + `,`,
 		`SubState:` + fmt.Sprintf("%v", this.SubState) + `,`,
-		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
+		`MachineID:` + fmt.Sprintf("%v", this.MachineID) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3248,7 +3248,7 @@ func (this *ScheduledUnit) String() string {
 	s := strings.Join([]string{`&ScheduledUnit{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
 		`CurrentState:` + fmt.Sprintf("%v", this.CurrentState) + `,`,
-		`Machine:` + fmt.Sprintf("%v", this.Machine) + `,`,
+		`MachineID:` + fmt.Sprintf("%v", this.MachineID) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3708,7 +3708,7 @@ func (m *UnitStateFilter) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MachineID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -3733,7 +3733,7 @@ func (m *UnitStateFilter) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Machine = string(data[iNdEx:postIndex])
+			m.MachineID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -3787,7 +3787,7 @@ func (m *UnitFilter) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MachineID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -3812,7 +3812,7 @@ func (m *UnitFilter) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Machine = string(data[iNdEx:postIndex])
+			m.MachineID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -3895,7 +3895,7 @@ func (m *ScheduleUnitRequest) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MachineID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -3920,7 +3920,7 @@ func (m *ScheduleUnitRequest) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Machine = string(data[iNdEx:postIndex])
+			m.MachineID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -4003,7 +4003,7 @@ func (m *UnscheduleUnitRequest) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MachineID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -4028,7 +4028,7 @@ func (m *UnscheduleUnitRequest) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Machine = string(data[iNdEx:postIndex])
+			m.MachineID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -4242,7 +4242,7 @@ func (m *Heartbeat) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MachineID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -4267,7 +4267,7 @@ func (m *Heartbeat) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Machine = string(data[iNdEx:postIndex])
+			m.MachineID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
@@ -4697,7 +4697,7 @@ func (m *UnitState) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MachineID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -4722,7 +4722,7 @@ func (m *UnitState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Machine = string(data[iNdEx:postIndex])
+			m.MachineID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -4905,7 +4905,7 @@ func (m *ScheduledUnit) Unmarshal(data []byte) error {
 			}
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Machine", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MachineID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -4930,7 +4930,7 @@ func (m *ScheduledUnit) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Machine = string(data[iNdEx:postIndex])
+			m.MachineID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

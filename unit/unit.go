@@ -232,7 +232,7 @@ func (s UnitState) ToPB() *pb.UnitState {
 		LoadState:   s.LoadState,
 		ActiveState: s.ActiveState,
 		SubState:    s.SubState,
-		Machine:     s.MachineID,
+		MachineID:   s.MachineID,
 	}
 }
 

@@ -54,21 +54,21 @@ message UnitStateFilter {
 	string load_state   = 3;
 	string active_state = 4;
 	string sub_state    = 5;
-	string machine      = 6;
+	string machine_id   = 6 [(gogoproto.customname) = "MachineID"];
 }
 
 message UnitFilter {
-	string machine            = 1;
+	string machine_id = 1 [(gogoproto.customname) = "MachineID"];
 }
 
 message ScheduleUnitRequest {
-	string name = 1;
-	string machine = 2;
+	string name       = 1;
+	string machine_id = 2 [(gogoproto.customname) = "MachineID"];
 }
 
 message UnscheduleUnitRequest {
-	string name    = 1;
-	string machine = 2;
+	string name       = 1;
+	string machine_id = 2 [(gogoproto.customname) = "MachineID"];
 }
 
 message SaveUnitStateRequest {
@@ -79,9 +79,9 @@ message SaveUnitStateRequest {
 }
 
 message Heartbeat {
-	string name    = 1;
-	string machine = 2;
-	int32     ttl   = 3 [(gogoproto.customname) = "TTL"];
+	string name       = 1;
+	string machine_id = 2 [(gogoproto.customname) = "MachineID"];
+	int32  ttl        = 3 [(gogoproto.customname) = "TTL"];
 }
 
 message GenericReply {
@@ -100,10 +100,10 @@ message UnitStates {
 message UnitState {
 	string name         = 1;
 	string hash         = 2;
-	string load_state   = 3; // enum  => err should be handled by fleet. sync ?
+	string load_state   = 3; // enum => err should be handled by fleet. sync ?
 	string active_state = 4; // enum
 	string sub_state    = 5; // enum
-	string machine      = 6;
+	string machine_id   = 6 [(gogoproto.customname) = "MachineID"];
 }
 
 message ScheduledUnits {
@@ -111,9 +111,9 @@ message ScheduledUnits {
 }
 
 message ScheduledUnit {
-	string      name    = 1;
-	TargetState current_state   = 2;
-	string      machine = 3;
+	string      name          = 1;
+	TargetState current_state = 2;
+	string machine_id         = 3 [(gogoproto.customname) = "MachineID"];
 }
 
 message UnitName {
@@ -129,14 +129,14 @@ message Unit {
 message MaybeScheduledUnit {
 	oneof is_scheduled {
 		ScheduledUnit unit = 1;
-		NotFound notfound = 2;
+		NotFound notfound  = 2;
 	}
 
 }
 
 message MaybeUnit {
 	oneof has_unit {
-		Unit unit = 1;
+		Unit unit         = 1;
 		NotFound notfound = 2;
 	}
 }
