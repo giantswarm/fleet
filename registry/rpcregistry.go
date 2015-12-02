@@ -182,10 +182,10 @@ func (r *RPCRegistry) getClient() rpc.RegistryClient {
 	return r.registryClient
 }
 
-func (r *RPCRegistry) ClearUnitHeartbeat(name string) {
-	defer debug.Exit_(debug.Enter_(name))
+func (r *RPCRegistry) ClearUnitHeartbeat(unitName string) {
+	defer debug.Exit_(debug.Enter_(unitName))
 
-	r.getClient().ClearUnitHeartbeat(r.ctx(), &rpc.UnitName{name})
+	r.getClient().ClearUnitHeartbeat(r.ctx(), &rpc.UnitName{unitName})
 }
 
 func (r *RPCRegistry) CreateUnit(j *job.Unit) error {
@@ -196,20 +196,20 @@ func (r *RPCRegistry) CreateUnit(j *job.Unit) error {
 	return err
 }
 
-func (r *RPCRegistry) DestroyUnit(name string) error {
-	defer debug.Exit_(debug.Enter_(name))
+func (r *RPCRegistry) DestroyUnit(unitName string) error {
+	defer debug.Exit_(debug.Enter_(unitName))
 
-	_, err := r.getClient().DestroyUnit(r.ctx(), &rpc.UnitName{name})
+	_, err := r.getClient().DestroyUnit(r.ctx(), &rpc.UnitName{unitName})
 	return err
 }
 
-func (r *RPCRegistry) UnitHeartbeat(name, machID string, ttl time.Duration) error {
-	defer debug.Exit_(debug.Enter_(name, machID))
+func (r *RPCRegistry) UnitHeartbeat(unitName, machID string, ttl time.Duration) error {
+	defer debug.Exit_(debug.Enter_(unitName, machID))
 
 	_, err := r.getClient().UnitHeartbeat(r.ctx(), &rpc.Heartbeat{
-		Name:    name,
-		Machine: machID,
-		TTL:     int32(ttl.Seconds()),
+		Name:      unitName,
+		MachineID: machID,
+		TTL:       int32(ttl.Seconds()),
 	})
 	return err
 }
@@ -218,53 +218,53 @@ func (r *RPCRegistry) RemoveMachineState(machID string) error {
 	return r.etcdRegistry.RemoveMachineState(machID)
 }
 
-func (r *RPCRegistry) RemoveUnitState(name string) error {
-	fmt.Println("XRPCC", "RemoveUnitState()", name)
+func (r *RPCRegistry) RemoveUnitState(unitName string) error {
+	fmt.Println("XRPCC", "RemoveUnitState()", unitName)
 	//return r.etcdRegistry.RemoveUnitState(name)
-	_, err := r.getClient().RemoveUnitState(r.ctx(), &rpc.UnitName{name})
+	_, err := r.getClient().RemoveUnitState(r.ctx(), &rpc.UnitName{unitName})
 	return err
 }
 
-func (r *RPCRegistry) SaveUnitState(name string, unitState *unit.UnitState, ttl time.Duration) {
-	defer debug.Exit_(debug.Enter_(name, unitState))
+func (r *RPCRegistry) SaveUnitState(unitName string, unitState *unit.UnitState, ttl time.Duration) {
+	defer debug.Exit_(debug.Enter_(unitName, unitState))
 
 	if unitState.UnitName == "" {
-		unitState.UnitName = name
+		unitState.UnitName = unitName
 	}
 
 	r.getClient().SaveUnitState(r.ctx(), &rpc.SaveUnitStateRequest{
-		Name:  name,
+		Name:  unitName,
 		State: unitState.ToPB(),
 		TTL:   int32(ttl.Seconds()),
 	})
 }
 
-func (r *RPCRegistry) ScheduleUnit(name, machID string) error {
-	defer debug.Exit_(debug.Enter_(name, machID))
+func (r *RPCRegistry) ScheduleUnit(unitName, machID string) error {
+	defer debug.Exit_(debug.Enter_(unitName, machID))
 
 	_, err := r.getClient().ScheduleUnit(r.ctx(), &rpc.ScheduleUnitRequest{
-		Name:    name,
-		Machine: machID,
+		Name:      unitName,
+		MachineID: machID,
 	})
 	return err
 }
 
-func (r *RPCRegistry) SetUnitTargetState(name string, state job.JobState) error {
-	defer debug.Exit_(debug.Enter_(name, state))
+func (r *RPCRegistry) SetUnitTargetState(unitName string, state job.JobState) error {
+	defer debug.Exit_(debug.Enter_(unitName, state))
 
 	_, err := r.getClient().SetUnitTargetState(r.ctx(), &rpc.ScheduledUnit{
-		Name:         name,
+		Name:         unitName,
 		CurrentState: state.ToPB(),
 	})
 	return err
 }
 
-func (r *RPCRegistry) UnscheduleUnit(name, machID string) error {
-	defer debug.Exit_(debug.Enter_(name, machID))
+func (r *RPCRegistry) UnscheduleUnit(unitName, machID string) error {
+	defer debug.Exit_(debug.Enter_(unitName, machID))
 
 	_, err := r.getClient().UnscheduleUnit(r.ctx(), &rpc.UnscheduleUnitRequest{
-		Name:    name,
-		Machine: machID,
+		Name:      unitName,
+		MachineID: machID,
 	})
 	return err
 }
@@ -282,7 +282,6 @@ func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
 
 	scheduledUnits, err := r.getClient().GetScheduledUnits(r.ctx(), &rpc.UnitFilter{})
 	if err != nil {
-		fmt.Println("ERROR XXX", err)
 		return []job.ScheduledUnit{}, err
 	}
 	units := make([]job.ScheduledUnit, len(scheduledUnits.Units))
@@ -291,28 +290,27 @@ func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
 		state := rpcUnitStateToJobState(unit.CurrentState)
 		units[i] = job.ScheduledUnit{
 			Name:            unit.Name,
-			TargetMachineID: unit.Machine,
+			TargetMachineID: unit.MachineID,
 			State:           &state,
 		}
 	}
 	return units, err
 }
 
-func (r *RPCRegistry) ScheduledUnit(name string) (*job.ScheduledUnit, error) {
-	defer debug.Exit_(debug.Enter_(name))
+func (r *RPCRegistry) ScheduledUnit(unitName string) (*job.ScheduledUnit, error) {
+	defer debug.Exit_(debug.Enter_(unitName))
 
-	maybeSchedUnit, err := r.getClient().GetScheduledUnit(r.ctx(), &rpc.UnitName{name})
+	maybeSchedUnit, err := r.getClient().GetScheduledUnit(r.ctx(), &rpc.UnitName{unitName})
 
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("XDATA CLIENT", "ScheduledUnit()", name, maybeSchedUnit)
 	if scheduledUnit := maybeSchedUnit.GetUnit(); scheduledUnit != nil {
 		state := rpcUnitStateToJobState(scheduledUnit.CurrentState)
 		schedu := &job.ScheduledUnit{
 			Name:            scheduledUnit.Name,
-			TargetMachineID: scheduledUnit.Machine,
+			TargetMachineID: scheduledUnit.MachineID,
 			State:           &state,
 		}
 		return schedu, err
@@ -321,10 +319,10 @@ func (r *RPCRegistry) ScheduledUnit(name string) (*job.ScheduledUnit, error) {
 
 }
 
-func (r *RPCRegistry) Unit(name string) (*job.Unit, error) {
-	defer debug.Exit_(debug.Enter_(name))
+func (r *RPCRegistry) Unit(unitName string) (*job.Unit, error) {
+	defer debug.Exit_(debug.Enter_(unitName))
 
-	maybeUnit, err := r.getClient().GetUnit(r.ctx(), &rpc.UnitName{name})
+	maybeUnit, err := r.getClient().GetUnit(r.ctx(), &rpc.UnitName{unitName})
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +364,7 @@ func (r *RPCRegistry) UnitStates() ([]*unit.UnitState, error) {
 	for i, state := range unitStates.UnitStates {
 		nUnitStates[i] = &unit.UnitState{
 			UnitName:    state.Name,
-			MachineID:   state.Machine,
+			MachineID:   state.MachineID,
 			UnitHash:    state.Hash,
 			LoadState:   state.LoadState,
 			ActiveState: state.ActiveState,

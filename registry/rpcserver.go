@@ -129,7 +129,7 @@ func (s *rpcserver) DestroyUnit(ctx context.Context, name *pb.UnitName) (*pb.Gen
 func (s *rpcserver) UnitHeartbeat(ctx context.Context, heartbeat *pb.Heartbeat) (*pb.GenericReply, error) {
 	defer debug.Exit_(debug.Enter_(heartbeat))
 
-	s.localRegistry.UnitHeartbeat(heartbeat.Name, heartbeat.Machine, time.Duration(heartbeat.TTL)*time.Second)
+	s.localRegistry.UnitHeartbeat(heartbeat.Name, heartbeat.MachineID, time.Duration(heartbeat.TTL)*time.Second)
 	return &pb.GenericReply{}, nil
 }
 
@@ -148,12 +148,12 @@ func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequ
 }
 
 func (s *rpcserver) ScheduleUnit(ctx context.Context, unit *pb.ScheduleUnitRequest) (*pb.GenericReply, error) {
-	defer debug.Exit_(debug.Enter_(unit.Name, unit.Machine))
+	defer debug.Exit_(debug.Enter_(unit.Name, unit.MachineID))
 
-	err := s.etcdRegistry.ScheduleUnit(unit.Name, unit.Machine)
+	err := s.etcdRegistry.ScheduleUnit(unit.Name, unit.MachineID)
 	if err == nil {
-		s.localRegistry.ScheduleUnit(unit.Name, unit.Machine)
-		s.notifyMachine(unit.Machine, []string{unit.Name})
+		s.localRegistry.ScheduleUnit(unit.Name, unit.MachineID)
+		s.notifyMachine(unit.MachineID, []string{unit.Name})
 	}
 	return &pb.GenericReply{}, err
 }
@@ -171,12 +171,12 @@ func (s *rpcserver) SetUnitTargetState(ctx context.Context, unit *pb.ScheduledUn
 }
 
 func (s *rpcserver) UnscheduleUnit(ctx context.Context, unit *pb.UnscheduleUnitRequest) (*pb.GenericReply, error) {
-	defer debug.Exit_(debug.Enter_(unit.Name, unit.Machine))
+	defer debug.Exit_(debug.Enter_(unit.Name, unit.MachineID))
 
-	err := s.etcdRegistry.UnscheduleUnit(unit.Name, unit.Machine)
+	err := s.etcdRegistry.UnscheduleUnit(unit.Name, unit.MachineID)
 	if err == nil {
-		s.localRegistry.UnscheduleUnit(unit.Name, unit.Machine)
-		s.notifyMachine(unit.Machine, []string{unit.Name})
+		s.localRegistry.UnscheduleUnit(unit.Name, unit.MachineID)
+		s.notifyMachine(unit.MachineID, []string{unit.Name})
 	}
 	return &pb.GenericReply{}, err
 }

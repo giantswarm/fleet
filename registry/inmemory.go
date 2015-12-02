@@ -95,20 +95,20 @@ func (r *inmemoryRegistry) Schedule() (units []pb.ScheduledUnit, err error) {
 	units = make([]pb.ScheduledUnit, 0, len(r.scheduledUnits))
 	for _, schedUnit := range r.scheduledUnits {
 		su := schedUnit
-		su.CurrentState = r.getScheduledUnitState(su.Name, su.Machine)
+		su.CurrentState = r.getScheduledUnitState(su.Name, su.MachineID)
 		units = append(units, su)
 	}
 	return units, nil
 }
 
-func (r *inmemoryRegistry) ScheduledUnit(name string) (unit *pb.ScheduledUnit, exists bool) {
-	defer debug.Exit_(debug.Enter_(name))
+func (r *inmemoryRegistry) ScheduledUnit(unitName string) (unit *pb.ScheduledUnit, exists bool) {
+	defer debug.Exit_(debug.Enter_(unitName))
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if schedUnit, exists := r.scheduledUnits[name]; exists {
+	if schedUnit, exists := r.scheduledUnits[unitName]; exists {
 		su := &schedUnit
-		su.CurrentState = r.getScheduledUnitState(name, schedUnit.Machine)
+		su.CurrentState = r.getScheduledUnitState(unitName, schedUnit.MachineID)
 		return su, true
 	}
 	return nil, false
@@ -204,18 +204,18 @@ func (r *inmemoryRegistry) DestroyUnit(name string) bool {
 	return deleted
 }
 
-func (r *inmemoryRegistry) RemoveUnitState(unitname string) {
-	defer debug.Exit_(debug.Enter_(unitname))
+func (r *inmemoryRegistry) RemoveUnitState(unitName string) {
+	defer debug.Exit_(debug.Enter_(unitName))
 	r.unitStatesMu.Lock()
 	defer r.unitStatesMu.Unlock()
 
-	if _, exists := r.unitStates[unitname]; exists {
-		delete(r.unitStates, unitname)
+	if _, exists := r.unitStates[unitName]; exists {
+		delete(r.unitStates, unitName)
 	}
 }
 
-func (r *inmemoryRegistry) SaveUnitState(unitname string, state *pb.UnitState, ttl time.Duration) {
-	defer debug.Exit_(debug.Enter_(unitname, state))
+func (r *inmemoryRegistry) SaveUnitState(unitName string, state *pb.UnitState, ttl time.Duration) {
+	defer debug.Exit_(debug.Enter_(unitName, state))
 	r.unitStatesMu.Lock()
 	defer r.unitStatesMu.Unlock()
 
@@ -224,54 +224,53 @@ func (r *inmemoryRegistry) SaveUnitState(unitname string, state *pb.UnitState, t
 		deadline: time.Now().Add(ttl),
 	}
 
-	if _, exists := r.unitStates[unitname]; exists {
-		r.unitStates[unitname][state.Machine] = statebeat
+	if _, exists := r.unitStates[unitName]; exists {
+		r.unitStates[unitName][state.MachineID] = statebeat
 	} else {
-		r.unitStates[unitname] = map[string]*unitStateHeartbeat{state.Machine: statebeat}
+		r.unitStates[unitName] = map[string]*unitStateHeartbeat{state.MachineID: statebeat}
 	}
-
 }
 
-func (r *inmemoryRegistry) UnitHeartbeat(unitname, machineid string, ttl time.Duration) {
-	defer debug.Exit_(debug.Enter_(unitname, machineid, ttl))
+func (r *inmemoryRegistry) UnitHeartbeat(unitName, machineid string, ttl time.Duration) {
+	defer debug.Exit_(debug.Enter_(unitName, machineid, ttl))
 	r.heartbeatsMu.Lock()
 	defer r.heartbeatsMu.Unlock()
 
-	if _, exists := r.unitHeartbeats[unitname]; exists {
-		r.unitHeartbeats[unitname][machineid] = time.Now().Add(ttl)
+	if _, exists := r.unitHeartbeats[unitName]; exists {
+		r.unitHeartbeats[unitName][machineid] = time.Now().Add(ttl)
 	} else {
-		r.unitHeartbeats[unitname] = map[string]time.Time{machineid: time.Now().Add(ttl)}
+		r.unitHeartbeats[unitName] = map[string]time.Time{machineid: time.Now().Add(ttl)}
 	}
 }
 
-func (r *inmemoryRegistry) ScheduleUnit(unitname, machineid string) {
-	defer debug.Exit_(debug.Enter_(unitname, machineid))
+func (r *inmemoryRegistry) ScheduleUnit(unitName, machineid string) {
+	defer debug.Exit_(debug.Enter_(unitName, machineid))
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.scheduledUnits[unitname] = pb.ScheduledUnit{
-		Name:         unitname,
+	r.scheduledUnits[unitName] = pb.ScheduledUnit{
+		Name:         unitName,
 		CurrentState: pb.TargetState_INACTIVE,
-		Machine:      machineid,
+		MachineID:    machineid,
 	}
 }
 
-func (r *inmemoryRegistry) UnscheduleUnit(unitname, machineid string) {
-	defer debug.Exit_(debug.Enter_(unitname, machineid))
+func (r *inmemoryRegistry) UnscheduleUnit(unitName, machineid string) {
+	defer debug.Exit_(debug.Enter_(unitName, machineid))
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	delete(r.scheduledUnits, unitname)
+	delete(r.scheduledUnits, unitName)
 }
 
-func (r *inmemoryRegistry) SetUnitTargetState(unitname string, targetState pb.TargetState) bool {
-	defer debug.Exit_(debug.Enter_(unitname, targetState))
+func (r *inmemoryRegistry) SetUnitTargetState(unitName string, targetState pb.TargetState) bool {
+	defer debug.Exit_(debug.Enter_(unitName, targetState))
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if u, exists := r.unitsCache[unitname]; exists {
+	if u, exists := r.unitsCache[unitName]; exists {
 		u.DesiredState = targetState
-		r.unitsCache[unitname] = u
+		r.unitsCache[unitName] = u
 		return true
 	}
 	return false
@@ -340,7 +339,7 @@ func (r *inmemoryRegistry) isScheduled(unitName, machine string) bool {
 		return false
 	}
 	if s, exists := r.scheduledUnits[unitName]; exists {
-		return s.Machine == machine
+		return s.MachineID == machine
 	}
 	return false
 }

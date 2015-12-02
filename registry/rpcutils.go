@@ -39,7 +39,7 @@ func rpcUnitStateToExtUnitState(state *pb.UnitState) *unit.UnitState {
 		LoadState:   state.LoadState,
 		ActiveState: state.ActiveState,
 		SubState:    state.SubState,
-		MachineID:   state.Machine,
+		MachineID:   state.MachineID,
 	}
 }
 

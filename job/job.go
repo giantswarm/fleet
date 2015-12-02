@@ -114,7 +114,7 @@ func (u *ScheduledUnit) ToPB() pb.ScheduledUnit {
 	unit := pb.ScheduledUnit{
 		Name:         u.Name,
 		CurrentState: u.State.ToPB(),
-		Machine:      u.TargetMachineID,
+		MachineID:    u.TargetMachineID,
 	}
 	return unit
 }
