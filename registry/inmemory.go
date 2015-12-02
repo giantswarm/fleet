@@ -11,6 +11,8 @@ import (
 	pb "github.com/coreos/fleet/rpc"
 )
 
+var DebugInmemoryRegistry bool
+
 type inmemoryRegistry struct {
 	unitsCache     map[string]pb.Unit
 	scheduledUnits map[string]pb.ScheduledUnit
@@ -88,7 +90,9 @@ func (r *inmemoryRegistry) LoadFrom(reg UnitRegistry) error {
 }
 
 func (r *inmemoryRegistry) Schedule() (units []pb.ScheduledUnit, err error) {
-	defer debug.Exit_(debug.Enter_())
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_())
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -102,7 +106,9 @@ func (r *inmemoryRegistry) Schedule() (units []pb.ScheduledUnit, err error) {
 }
 
 func (r *inmemoryRegistry) ScheduledUnit(unitName string) (unit *pb.ScheduledUnit, exists bool) {
-	defer debug.Exit_(debug.Enter_(unitName))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitName))
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -115,7 +121,9 @@ func (r *inmemoryRegistry) ScheduledUnit(unitName string) (unit *pb.ScheduledUni
 }
 
 func (r *inmemoryRegistry) Unit(name string) (pb.Unit, bool) {
-	defer debug.Exit_(debug.Enter_(name))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(name))
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -124,7 +132,9 @@ func (r *inmemoryRegistry) Unit(name string) (pb.Unit, bool) {
 }
 
 func (r *inmemoryRegistry) Units() []pb.Unit {
-	defer debug.Exit_(debug.Enter_())
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_())
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -143,7 +153,9 @@ func (r *inmemoryRegistry) Units() []pb.Unit {
 }
 
 func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
-	defer debug.Exit_(debug.Enter_())
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_())
+	}
 	r.unitStatesMu.Lock()
 	defer r.unitStatesMu.Unlock()
 
@@ -164,7 +176,9 @@ func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
 }
 
 func (r *inmemoryRegistry) ClearUnitHeartbeat(name string) {
-	defer debug.Exit_(debug.Enter_(name))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(name))
+	}
 	r.heartbeatsMu.Lock()
 	defer r.heartbeatsMu.Unlock()
 
@@ -174,7 +188,9 @@ func (r *inmemoryRegistry) ClearUnitHeartbeat(name string) {
 }
 
 func (r *inmemoryRegistry) DestroyUnit(name string) bool {
-	defer debug.Exit_(debug.Enter_(name))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(name))
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.unitStatesMu.Lock()
@@ -205,7 +221,9 @@ func (r *inmemoryRegistry) DestroyUnit(name string) bool {
 }
 
 func (r *inmemoryRegistry) RemoveUnitState(unitName string) {
-	defer debug.Exit_(debug.Enter_(unitName))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitName))
+	}
 	r.unitStatesMu.Lock()
 	defer r.unitStatesMu.Unlock()
 
@@ -215,7 +233,9 @@ func (r *inmemoryRegistry) RemoveUnitState(unitName string) {
 }
 
 func (r *inmemoryRegistry) SaveUnitState(unitName string, state *pb.UnitState, ttl time.Duration) {
-	defer debug.Exit_(debug.Enter_(unitName, state))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitName, state))
+	}
 	r.unitStatesMu.Lock()
 	defer r.unitStatesMu.Unlock()
 
@@ -232,7 +252,9 @@ func (r *inmemoryRegistry) SaveUnitState(unitName string, state *pb.UnitState, t
 }
 
 func (r *inmemoryRegistry) UnitHeartbeat(unitName, machineid string, ttl time.Duration) {
-	defer debug.Exit_(debug.Enter_(unitName, machineid, ttl))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitName, machineid, ttl))
+	}
 	r.heartbeatsMu.Lock()
 	defer r.heartbeatsMu.Unlock()
 
@@ -244,7 +266,9 @@ func (r *inmemoryRegistry) UnitHeartbeat(unitName, machineid string, ttl time.Du
 }
 
 func (r *inmemoryRegistry) ScheduleUnit(unitName, machineid string) {
-	defer debug.Exit_(debug.Enter_(unitName, machineid))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitName, machineid))
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -256,7 +280,9 @@ func (r *inmemoryRegistry) ScheduleUnit(unitName, machineid string) {
 }
 
 func (r *inmemoryRegistry) UnscheduleUnit(unitName, machineid string) {
-	defer debug.Exit_(debug.Enter_(unitName, machineid))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitName, machineid))
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -264,7 +290,9 @@ func (r *inmemoryRegistry) UnscheduleUnit(unitName, machineid string) {
 }
 
 func (r *inmemoryRegistry) SetUnitTargetState(unitName string, targetState pb.TargetState) bool {
-	defer debug.Exit_(debug.Enter_(unitName, targetState))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitName, targetState))
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -277,7 +305,9 @@ func (r *inmemoryRegistry) SetUnitTargetState(unitName string, targetState pb.Ta
 }
 
 func (r *inmemoryRegistry) CreateUnit(u *pb.Unit) {
-	defer debug.Exit_(debug.Enter_(u))
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(u))
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
