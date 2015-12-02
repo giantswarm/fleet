@@ -16,10 +16,9 @@ type inmemoryRegistry struct {
 	scheduledUnits map[string]pb.ScheduledUnit
 	unitHeartbeats map[string]map[string]time.Time
 	unitStates     map[string]map[string]*unitStateHeartbeat
-
-	mu           *sync.RWMutex
-	heartbeatsMu *sync.RWMutex
-	unitStatesMu *sync.RWMutex
+	mu             *sync.RWMutex
+	heartbeatsMu   *sync.RWMutex
+	unitStatesMu   *sync.RWMutex
 }
 
 func newInmemoryRegistry() *inmemoryRegistry {
