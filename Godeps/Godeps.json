@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/coreos/fleet",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.5.1",
 	"Packages": [
 		"./..."
 	],
@@ -45,6 +45,25 @@
 			"Rev": "9bb9dbf0e53309fa81d26e7230cbb6cff9373cad"
 		},
 		{
+			"ImportPath": "github.com/gogo/protobuf/gogoproto",
+			"Comment": "v0.1-78-gd3235f0",
+			"Rev": "d3235f01ecae4901dd9f7ea6af57a352c0189deb"
+		},
+		{
+			"ImportPath": "github.com/gogo/protobuf/proto",
+			"Comment": "v0.1-78-gd3235f0",
+			"Rev": "d3235f01ecae4901dd9f7ea6af57a352c0189deb"
+		},
+		{
+			"ImportPath": "github.com/gogo/protobuf/protoc-gen-gogo/descriptor",
+			"Comment": "v0.1-78-gd3235f0",
+			"Rev": "d3235f01ecae4901dd9f7ea6af57a352c0189deb"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "221834dcb89c96e4b057ed8bb878bfe569dfacf4"
+		},
+		{
 			"ImportPath": "github.com/jonboulle/clockwork",
 			"Rev": "b473f398c464f1988327f67c9e6aa7fba62f80d2"
 		},
@@ -87,15 +106,31 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "a8c61998a557a37435f719980da368469c10bfed"
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
 		},
 		{
 			"ImportPath": "google.golang.org/api/googleapi",
 			"Rev": "d3edb0282bde692467788c50070a9211afe75cf3"
 		},
 		{
+			"ImportPath": "golang.org/x/net/http2",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/internal/timeseries",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
+			"ImportPath": "golang.org/x/net/trace",
+			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+		},
+		{
 			"ImportPath": "google.golang.org/api/googleapi/internal/uritemplates",
 			"Rev": "d3edb0282bde692467788c50070a9211afe75cf3"
+		},
+		{
+			"ImportPath": "google.golang.org/grpc",
+			"Rev": "a202995ce9a99c7d65875ba9f0cf04ff43169dd5"
 		}
 	]
 }
