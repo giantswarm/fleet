@@ -3,15 +3,16 @@ package registry
 import (
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/coreos/fleet/Godeps/_workspace/src/golang.org/x/net/context"
-	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc"
+	"golang.org/x/net/context"
 
 	"github.com/coreos/fleet/debug"
 	pb "github.com/coreos/fleet/rpc"
+	"google.golang.org/grpc"
+
+	"strings"
 )
 
 type machineChan chan []string
