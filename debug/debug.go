@@ -4,12 +4,27 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"regexp"
 	"runtime"
 	"strings"
 )
 
 var Enabled bool
+
+func init() {
+	Enabled = true
+}
+
+func Start(addr string) {
+	go http.ListenAndServe(addr, nil)
+}
+
+func RegisterHTTPHandler(pattern string, handler http.Handler) {
+	if Enabled {
+		http.Handle(pattern, handler)
+	}
+}
 
 func genRandomID() string {
 	c := 5

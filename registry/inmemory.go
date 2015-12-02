@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"encoding/json"
 	"net/http"
 	"sort"
 	"sync"
@@ -34,37 +33,17 @@ func newInmemoryRegistry() *inmemoryRegistry {
 		unitStatesMu:   new(sync.RWMutex),
 	}
 
-	if debug.Enabled {
-		latestReg = r
-	}
+	currentReg = r
 
 	return r
 }
 
 func init() {
-	debug.Enabled = true
-	if debug.Enabled {
-		http.Handle("/fleet/inmemory", http.HandlerFunc(dbgHandler))
-	}
+	// register debug handler
+	debug.RegisterHTTPHandler("/fleet/inmemory", http.HandlerFunc(dbgHandler))
 }
 
-func dbgHandler(w http.ResponseWriter, r *http.Request) {
-	if latestReg == nil {
-		return
-	}
-	e := json.NewEncoder(w)
-
-	data := map[string]interface{}{
-		"Units":          latestReg.unitsCache,
-		"ScheduledUnits": latestReg.scheduledUnits,
-		"Heartbeats":     latestReg.unitHeartbeats,
-		"States":         latestReg.unitStates,
-	}
-
-	e.Encode(data)
-}
-
-var latestReg *inmemoryRegistry
+var currentReg *inmemoryRegistry
 
 func (r *inmemoryRegistry) LoadFrom(reg UnitRegistry) error {
 	r.mu.Lock()

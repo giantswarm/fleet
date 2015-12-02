@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/rakyll/globalconf"
+	"github.com/coreos/fleet/debug"
 
 	"github.com/coreos/fleet/agent"
 	"github.com/coreos/fleet/config"
@@ -40,6 +41,7 @@ const (
 func main() {
 	userset := flag.NewFlagSet("fleet", flag.ExitOnError)
 	printVersion := userset.Bool("version", false, "Print the version and exit")
+	enableDebugMode := userset.Bool("enable-debug", false, "Enable debug helpers")
 	cfgPath := userset.String("config", "", fmt.Sprintf("Path to config file. Fleet will look for a config at %s by default.", DefaultConfigFile))
 
 	userset.Usage = func() {
@@ -66,6 +68,8 @@ func main() {
 		os.Exit(0)
 	}
 
+	debug.Enabled = *enableDebugMode
+
 	log.Infof("Starting fleetd version %v", version.Version)
 
 	cfgset := flag.NewFlagSet("fleet", flag.ExitOnError)
@@ -84,11 +88,16 @@ func main() {
 	cfgset.Bool("disable_engine", false, "Disable the engine entirely, use with care")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
+	cfgset.String("debug_address", "0.0.0.0:6060", "Debug's http handler address (host:port)")
 
 	globalconf.Register("", cfgset)
 	cfg, err := getConfig(cfgset, *cfgPath)
 	if err != nil {
 		log.Fatalf(err.Error())
+	}
+
+	if *enableDebugMode {
+		debug.Start(cfg.DebugAddr)
 	}
 
 	log.Debugf("Creating Server")
@@ -198,6 +207,7 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		TokenLimit:              (*flagset.Lookup("token_limit")).Value.(flag.Getter).Get().(int),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),
+		DebugAddr:               (*flagset.Lookup("debug_address")).Value.(flag.Getter).Get().(string),
 	}
 
 	if cfg.VerifyUnits {

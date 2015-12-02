@@ -34,6 +34,7 @@ type Config struct {
 	DisableEngine           bool
 	VerifyUnits             bool
 	AuthorizedKeysFile      string
+	DebugAddr               string
 }
 
 func (c *Config) Metadata() map[string]string {
