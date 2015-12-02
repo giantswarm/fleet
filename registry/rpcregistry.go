@@ -7,17 +7,17 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"github.com/coreos/fleet/Godeps/_workspace/src/golang.org/x/net/context"
 
-	"google.golang.org/grpc"
+	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc"
 
+	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
 	"github.com/coreos/fleet/debug"
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/pkg"
 	"github.com/coreos/fleet/rpc"
 	"github.com/coreos/fleet/unit"
-	"github.com/coreos/go-semver/semver"
 )
 
 const (

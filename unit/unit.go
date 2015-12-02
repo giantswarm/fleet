@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-systemd/unit"
+
+	pb "github.com/coreos/fleet/rpc"
 )
 
 func NewUnitFile(raw string) (*UnitFile, error) {
