@@ -140,9 +140,10 @@ func New(cfg config.Config) (*Server, error) {
 
 func newMachineFromConfig(cfg config.Config, mgr unit.UnitManager) (*machine.CoreOSMachine, error) {
 	state := machine.MachineState{
-		PublicIP: cfg.PublicIP,
-		Metadata: cfg.Metadata(),
-		Version:  version.Version,
+		PublicIP:     cfg.PublicIP,
+		Metadata:     cfg.Metadata(),
+		Capabilities: cfg.Capabilities(),
+		Version:      version.Version,
 	}
 
 	mach := machine.NewCoreOSMachine(state, mgr)
