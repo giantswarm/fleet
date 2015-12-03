@@ -217,6 +217,7 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		DisableEngine:           (*flagset.Lookup("disable_engine")).Value.(flag.Getter).Get().(bool),
 		EnableGRPC:              (*flagset.Lookup("enable_grpc")).Value.(flag.Getter).Get().(bool),
 		DisableWatches:          (*flagset.Lookup("disable_watches")).Value.(flag.Getter).Get().(bool),
+		EnableGRPC:              (*flagset.Lookup("enable_grpc")).Value.(flag.Getter).Get().(bool),
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		TokenLimit:              (*flagset.Lookup("token_limit")).Value.(flag.Getter).Get().(int),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),
