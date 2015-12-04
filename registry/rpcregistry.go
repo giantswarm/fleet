@@ -250,7 +250,7 @@ func (r *RPCRegistry) Units() ([]job.Unit, error) {
 
 	units, err := r.getClient().GetUnits(r.ctx(), &pb.UnitFilter{})
 	if err != nil {
-		//TODO XXX ERROR me
+		//TODO(htr) XXX ERROR me
 		return []job.Unit{}, err
 	}
 
