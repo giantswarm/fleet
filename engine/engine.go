@@ -117,6 +117,7 @@ func (e *Engine) Run(ival time.Duration, stop <-chan struct{}) {
 			engineState := e.getMachineState(e.lease.MachineID())
 			if engineState != nil {
 				go func() {
+					//TODO(htr) XXX synchronous delivery might be too asynchronous here.
 					e.engineChanged <- *engineState
 				}()
 			}
