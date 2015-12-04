@@ -1,10 +1,13 @@
 package registry
 
 import (
+	"fmt"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
+	"github.com/coreos/fleet/log"
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
@@ -15,6 +18,10 @@ type RegistryMux struct {
 	etcdRegistry      *EtcdRegistry
 	engineChangedChan chan machine.MachineState
 	localMachine      machine.Machine
+	rpcserver         *rpcserver
+	currentRegistry   Registry
+	rpcRegistry       *RPCRegistry
+	currentEngine     machine.MachineState
 
 	handlingEngineChange *sync.RWMutex
 }
@@ -36,16 +43,65 @@ func (r *RegistryMux) StartMux() {
 	}()
 }
 
+func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, error) {
+	for {
+		addr := fmt.Sprintf("%s:%d", r.currentEngine.PublicIP, port)
+		conn, err := net.Dial("tcp", addr)
+		if err == nil {
+			log.Infof("connected to engine on %s\n", r.currentEngine.PublicIP)
+			return conn, nil
+		}
+		//log.Errorf("unable to connect to new engine: %+v", err)
+		time.Sleep(time.Millisecond * 200)
+	}
+}
+
 func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 	r.handlingEngineChange.Lock()
 	defer r.handlingEngineChange.Unlock()
+	r.currentEngine = newEngine
+	log.Infof("engine changed, checking capabilities %+v", newEngine)
+	if r.localMachine.State().Capabilities.Has(machine.CapGRPC) {
+		if r.rpcserver != nil {
+			r.rpcserver.Stop()
+			r.rpcserver = nil
+		}
+		if newEngine.ID == r.localMachine.State().ID {
+			log.Infof("starting rpc server\n")
+			// start rpc server
+			rpcserver, err := newRPCServer(r.etcdRegistry, newEngine.PublicIP)
+			if err != nil {
+				log.Error("unable to create rpc server %+v", err)
+			}
+			r.rpcserver = rpcserver
+			r.rpcserver.Start()
+		}
+		if newEngine.Capabilities.Has(machine.CapGRPC) {
+			log.Infof("new engine supports GRPC, connecting\n")
+			if r.rpcRegistry == nil {
+				r.rpcRegistry = NewRPCRegistry(r.rpcDialer)
+				r.rpcRegistry.Connect()
+			}
+			r.currentRegistry = r.rpcRegistry
+			// connect to rpc registry
+		} else {
+			log.Infof("falling back to etcd registry\n")
+			r.currentRegistry = r.etcdRegistry
+		}
+
+	} else {
+		log.Infof("falling back to etcd registry\n")
+		r.currentRegistry = r.etcdRegistry
+	}
 }
 
 func (r *RegistryMux) getRegistry() Registry {
 	r.handlingEngineChange.RLock()
 	defer r.handlingEngineChange.RUnlock()
-
-	return r.etcdRegistry
+	if r.currentRegistry == nil {
+		return r.etcdRegistry
+	}
+	return r.currentRegistry
 }
 
 func (r *RegistryMux) ClearUnitHeartbeat(name string) {
