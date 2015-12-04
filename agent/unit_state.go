@@ -72,10 +72,10 @@ type UnitStatePublisher struct {
 // are received on the channel.
 func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeat, stop <-chan struct{}) {
 	var period time.Duration
-	if ttl > 10*time.Second {
-		period = ttl * 4 / 5
+	if p.ttl > 10*time.Second {
+		period = p.ttl * 4 / 5
 	} else {
-		period = ttl / 2
+		period = p.ttl / 2
 	}
 
 	go func() {
