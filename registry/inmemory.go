@@ -10,7 +10,7 @@ import (
 	pb "github.com/coreos/fleet/protobuf"
 )
 
-var DebugInmemoryRegistry bool
+var DebugInmemoryRegistry bool = true
 
 type inmemoryRegistry struct {
 	unitsCache     map[string]pb.Unit
