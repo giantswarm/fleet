@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"sync"
 	"time"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
@@ -11,11 +12,40 @@ import (
 )
 
 type RegistryMux struct {
-	etcdRegistry *EtcdRegistry
+	etcdRegistry      *EtcdRegistry
+	engineChangedChan chan machine.MachineState
+	localMachine      machine.Machine
+
+	handlingEngineChange *sync.RWMutex
+}
+
+func NewRegistryMux(etcdRegistry *EtcdRegistry, engineChanged chan machine.MachineState, localMachine machine.Machine) *RegistryMux {
+	return &RegistryMux{
+		etcdRegistry:         etcdRegistry,
+		engineChangedChan:    engineChanged,
+		localMachine:         localMachine,
+		handlingEngineChange: new(sync.RWMutex),
+	}
+}
+
+func (r *RegistryMux) StartMux() {
+	go func() {
+		for newEngine := range r.engineChangedChan {
+			r.EngineChanged(newEngine)
+		}
+	}()
+}
+
+func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
+	r.handlingEngineChange.Lock()
+	defer r.handlingEngineChange.Unlock()
 }
 
 func (r *RegistryMux) getRegistry() Registry {
-	return nil
+	r.handlingEngineChange.RLock()
+	defer r.handlingEngineChange.RUnlock()
+
+	return r.etcdRegistry
 }
 
 func (r *RegistryMux) ClearUnitHeartbeat(name string) {
@@ -35,11 +65,11 @@ func (r *RegistryMux) UnitHeartbeat(name string, machID string, ttl time.Duratio
 }
 
 func (r *RegistryMux) Machines() ([]machine.MachineState, error) {
-	return r.getRegistry().Machines()
+	return r.etcdRegistry.Machines()
 }
 
 func (r *RegistryMux) RemoveMachineState(machID string) error {
-	return r.getRegistry().RemoveMachineState(machID)
+	return r.etcdRegistry.RemoveMachineState(machID)
 }
 
 func (r *RegistryMux) RemoveUnitState(jobName string) error {
@@ -59,7 +89,7 @@ func (r *RegistryMux) SetUnitTargetState(name string, state job.JobState) error 
 }
 
 func (r *RegistryMux) SetMachineState(ms machine.MachineState, ttl time.Duration) (uint64, error) {
-	return r.getRegistry().SetMachineState(ms, ttl)
+	return r.etcdRegistry.SetMachineState(ms, ttl)
 }
 
 func (r *RegistryMux) UnscheduleUnit(name string, machID string) error {
