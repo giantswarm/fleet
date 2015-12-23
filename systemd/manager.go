@@ -36,11 +36,18 @@ type systemdUnitManager struct {
 	systemd  *dbus.Conn
 	unitsDir string
 
-	hashes map[string]unit.Hash
-	mutex  sync.RWMutex
+	hashes                 map[string]unit.Hash
+	mutex                  sync.RWMutex
+	cacheSystemdUnitStates map[string]*unit.UnitState
 }
 
+var (
+	useFlagCache = false
+)
+
 func NewSystemdUnitManager(uDir string) (*systemdUnitManager, error) {
+	cacheSystemdUnitStates := make(map[string]*unit.UnitState)
+
 	systemd, err := dbus.New()
 	if err != nil {
 		return nil, err
@@ -60,6 +67,7 @@ func NewSystemdUnitManager(uDir string) (*systemdUnitManager, error) {
 		unitsDir: uDir,
 		hashes:   hashes,
 		mutex:    sync.RWMutex{},
+		cacheSystemdUnitStates: cacheSystemdUnitStates,
 	}
 	return &mgr, nil
 }
@@ -100,6 +108,8 @@ func hashUnitFile(loc string) (unit.Hash, error) {
 // Load writes the given Unit to disk, subscribing to relevant dbus
 // events and caching the Unit's Hash.
 func (m *systemdUnitManager) Load(name string, u unit.UnitFile) error {
+	useFlagCache = false
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	err := m.writeUnit(name, u.String())
@@ -113,6 +123,8 @@ func (m *systemdUnitManager) Load(name string, u unit.UnitFile) error {
 // Unload removes the indicated unit from the filesystem, deletes its
 // associated Hash from the cache and clears its unit status in systemd
 func (m *systemdUnitManager) Unload(name string) {
+	useFlagCache = false
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	delete(m.hashes, name)
@@ -122,6 +134,8 @@ func (m *systemdUnitManager) Unload(name string) {
 // TriggerStart asynchronously starts the unit identified by the given name.
 // This function does not block for the underlying unit to actually start.
 func (m *systemdUnitManager) TriggerStart(name string) {
+	useFlagCache = false
+
 	jobID, err := m.systemd.StartUnit(name, "replace", nil)
 	if err == nil {
 		log.Infof("Triggered systemd unit %s start: job=%d", name, jobID)
@@ -133,6 +147,8 @@ func (m *systemdUnitManager) TriggerStart(name string) {
 // Stop stops the unit identified by the given name.
 // This function blocks until the underlying unit is actually stopped.
 func (m *systemdUnitManager) Stop(name string) {
+	useFlagCache = false
+
 	retChan := make(chan string)
 	m.stopUnit(name, retChan)
 
@@ -144,10 +160,14 @@ func (m *systemdUnitManager) Stop(name string) {
 // TriggerStop asynchronously stops the unit identified by the given name.
 // This function does not block for the underlying unit to actually stop.
 func (m *systemdUnitManager) TriggerStop(name string) {
+	useFlagCache = false
+
 	m.stopUnit(name, nil)
 }
 
 func (m *systemdUnitManager) stopUnit(name string, ch chan<- string) {
+	useFlagCache = false
+
 	jobID, err := m.systemd.StopUnit(name, "replace", ch)
 	if err == nil {
 		log.Infof("Triggered systemd unit %s stop: job=%d", name, jobID)
@@ -214,13 +234,31 @@ func (m *systemdUnitManager) GetUnitStates(filter pkg.Set) (map[string]*unit.Uni
 	// present in the initial ListUnits() call.
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	dbusStatuses, err := m.systemd.ListUnits()
 
-	if err != nil {
-		return nil, err
+	if !useFlagCache || len(m.cacheSystemdUnitStates) == 0 {
+		m.cacheSystemdUnitStates = nil
+		m.cacheSystemdUnitStates = make(map[string]*unit.UnitState)
+		log.Infof("systemd GetUnitStates() something has changed since previous iteration.")
+		if err := m.populateCacheSystemdUnitStates(filter); err != nil {
+			return nil, err
+		}
+
+	} else {
+		log.Infof("systemd GetUnitStates() NOTHING has changed since previous iteration.")
+		//log.Infof("systemd GetUnitStates() dbus state %v",  dbusUnitStates[name])
 	}
 
-	states := make(map[string]*unit.UnitState)
+	useFlagCache = true
+
+	return m.cacheSystemdUnitStates, nil
+}
+
+func (m *systemdUnitManager) populateCacheSystemdUnitStates(filter pkg.Set) error {
+	dbusStatuses, err := m.systemd.ListUnits()
+	if err != nil {
+		return err
+	}
+
 	for _, dus := range dbusStatuses {
 		if !filter.Contains(dus.Name) {
 			continue
@@ -235,27 +273,27 @@ func (m *systemdUnitManager) GetUnitStates(filter pkg.Set) (map[string]*unit.Uni
 		if h, ok := m.hashes[dus.Name]; ok {
 			us.UnitHash = h.String()
 		}
-		states[dus.Name] = us
+		m.cacheSystemdUnitStates[dus.Name] = us
 	}
 
 	// grab data on subscribed units that didn't show up in ListUnits, most
 	// likely due to being inactive
 	for _, name := range filter.Values() {
-		if _, ok := states[name]; ok {
+		if _, ok := m.cacheSystemdUnitStates[name]; ok {
 			continue
 		}
 
 		us, err := m.getUnitState(name)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if h, ok := m.hashes[name]; ok {
 			us.UnitHash = h.String()
 		}
-		states[name] = us
+		m.cacheSystemdUnitStates[name] = us
 	}
 
-	return states, nil
+	return nil
 }
 
 func (m *systemdUnitManager) writeUnit(name string, contents string) error {
