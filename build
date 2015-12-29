@@ -14,6 +14,8 @@ export GOBIN=${PWD}/bin
 export GOPATH=${PWD}/gopath
 
 eval $(go env)
+GOPATH=${GOPATH} go get github.com/pquerna/ffjson/ffjson
+GOPATH=${GOPATH} go get github.com/shirou/gopsutil
 
 if [ ${GOOS} = "linux" ]; then
 	echo "Building fleetd..."
