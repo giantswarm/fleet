@@ -17,16 +17,33 @@ package agent
 import (
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
+
+	"github.com/shirou/gopsutil/docker"
+	"github.com/shirou/gopsutil/load"
+	"github.com/shirou/gopsutil/mem"
 )
 
 type AgentState struct {
-	MState *machine.MachineState
-	Units  map[string]*job.Unit
+	MState              *machine.MachineState
+	Units               map[string]*job.Unit
+	SystemResourceUsage *SystemLoad
 }
+
+type SystemLoad struct {
+	Load1               float64
+	Load5               float64
+	Load15              float64
+	MemPercent          float64
+	MemFree             uint64
+	NumDockerContainers int
+}
+
+var lastCollectionTimestamp = time.Now()
 
 func NewAgentState(ms *machine.MachineState) *AgentState {
 	return &AgentState{
@@ -107,4 +124,50 @@ func (as *AgentState) AbleToRun(j *job.Job) (bool, string) {
 	}
 
 	return true, ""
+}
+
+func (as *AgentState) Stats() (*SystemLoad, error) {
+	timeNow := time.Now()
+
+	// Greater than 3minutes
+	if timeNow.Sub(lastCollectionTimestamp) > 180 {
+		v, err := mem.VirtualMemory()
+		if err != nil {
+			return nil, err
+		}
+
+		l, err := load.LoadAvg()
+		if err != nil {
+			return nil, err
+		}
+
+		dockerIDs, err := docker.GetDockerIDList()
+		if err != nil {
+			return nil, err
+		}
+
+		// almost every return value is a struct
+		fmt.Printf("Machine ID: %s\n", as.MState.ID)
+		fmt.Printf("Total: %v, Free:%v, UsedPercent:%f%%\n", v.Total, v.Free, v.UsedPercent)
+		fmt.Printf("Load1: %f; Load5: %f; Load15: %f \n", l.Load1, l.Load5, l.Load15)
+		fmt.Printf("NumDockerContainers: %d \n", len(dockerIDs))
+
+		as.SystemResourceUsage = &SystemLoad{
+			Load1:               l.Load1,
+			Load5:               l.Load5,
+			Load15:              l.Load15,
+			MemPercent:          v.UsedPercent,
+			MemFree:             v.Free,
+			NumDockerContainers: len(dockerIDs),
+		}
+
+		// Store last time we collected the resource usage metrics
+		lastCollectionTimestamp = timeNow
+
+		return as.SystemResourceUsage, nil
+
+	}
+
+	return as.SystemResourceUsage, nil
+
 }

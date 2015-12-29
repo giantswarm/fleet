@@ -30,6 +30,13 @@ type Scheduler interface {
 	Decide(*clusterState, *job.Job) (*decision, error)
 }
 
+const (
+	WeightNumUnits         = 0.5
+	WeightCPUload          = 0.3
+	WeightMemUsage         = 0.1
+	WeightDockerContainers = 0.1
+)
+
 type leastLoadedScheduler struct{}
 
 func (lls *leastLoadedScheduler) Decide(clust *clusterState, j *job.Job) (*decision, error) {
@@ -81,7 +88,18 @@ func (sas sortableAgentStates) Len() int      { return len(sas) }
 func (sas sortableAgentStates) Swap(i, j int) { sas[i], sas[j] = sas[j], sas[i] }
 
 func (sas sortableAgentStates) Less(i, j int) bool {
-	niUnits := len(sas[i].Units)
-	njUnits := len(sas[j].Units)
-	return niUnits < njUnits || (niUnits == njUnits && sas[i].MState.ID < sas[j].MState.ID)
+	iWeight, _ := calculateAgentStatsWeight(sas[i])
+	jWeight, _ := calculateAgentStatsWeight(sas[j])
+	fmt.Println("Weight calculation: %s sas[i].MState.ID weight: %f", sas[i].MState.ID, iWeight)
+	fmt.Println("Weight calculation: %s sas[j].MState.ID weight: %f", sas[j].MState.ID, jWeight)
+	return iWeight < jWeight
+}
+
+func calculateAgentStatsWeight(agent *agent.AgentState) (float64, error) {
+	agentLoad, err := agent.Stats()
+	if err != nil {
+		return 0, err
+	}
+
+	return (WeightNumUnits*float64(len(agent.Units)) + WeightCPUload*agentLoad.Load1 + WeightMemUsage*(float64(agentLoad.MemPercent/100)) + WeightDockerContainers*float64(agentLoad.NumDockerContainers)), nil
 }
