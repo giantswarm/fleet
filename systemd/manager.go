@@ -104,8 +104,6 @@ func hashUnitFile(loc string) (unit.Hash, error) {
 // Load writes the given Unit to disk, subscribing to relevant dbus
 // events and caching the Unit's Hash.
 func (m *systemdUnitManager) Load(name string, u unit.UnitFile) error {
-	useSystemdUnitStateCache = false
-
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	err := m.writeUnit(name, u.String())
@@ -113,57 +111,57 @@ func (m *systemdUnitManager) Load(name string, u unit.UnitFile) error {
 		return err
 	}
 	m.hashes[name] = u.Hash()
+
+	refreshSystemdUnitStateCache()
+
 	return nil
 }
 
 // Unload removes the indicated unit from the filesystem, deletes its
 // associated Hash from the cache and clears its unit status in systemd
 func (m *systemdUnitManager) Unload(name string) {
-	useSystemdUnitStateCache = false
-
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	delete(m.hashes, name)
 	m.removeUnit(name)
+
+	refreshSystemdUnitStateCache()
 }
 
 // TriggerStart asynchronously starts the unit identified by the given name.
 // This function does not block for the underlying unit to actually start.
 func (m *systemdUnitManager) TriggerStart(name string) {
-	useSystemdUnitStateCache = false
-
 	jobID, err := m.systemd.StartUnit(name, "replace", nil)
 	if err == nil {
 		log.Infof("Triggered systemd unit %s start: job=%d", name, jobID)
 	} else {
 		log.Errorf("Failed to trigger systemd unit %s start: %v", name, err)
 	}
+	refreshSystemdUnitStateCache()
 }
 
 // Stop stops the unit identified by the given name.
 // This function blocks until the underlying unit is actually stopped.
 func (m *systemdUnitManager) Stop(name string) {
-	useSystemdUnitStateCache = false
-
 	retChan := make(chan string)
 	m.stopUnit(name, retChan)
 
 	jobReply := <-retChan
 
 	log.Infof("stop job for unit %s result: %s", name, jobReply)
+
+	refreshSystemdUnitStateCache()
 }
 
 // TriggerStop asynchronously stops the unit identified by the given name.
 // This function does not block for the underlying unit to actually stop.
 func (m *systemdUnitManager) TriggerStop(name string) {
-	useSystemdUnitStateCache = false
-
 	m.stopUnit(name, nil)
+
+	refreshSystemdUnitStateCache()
 }
 
 func (m *systemdUnitManager) stopUnit(name string, ch chan<- string) {
-	useSystemdUnitStateCache = false
-
 	jobID, err := m.systemd.StopUnit(name, "replace", ch)
 	if err == nil {
 		log.Infof("Triggered systemd unit %s stop: job=%d", name, jobID)
@@ -232,6 +230,7 @@ func (m *systemdUnitManager) GetUnitStates(filter pkg.Set) (map[string]*unit.Uni
 	defer m.mutex.Unlock()
 	unitStates := make(map[string]*unit.UnitState)
 
+	// Systemd units has to be queried as unit states can change at any time.
 	dbusStatuses, err := m.systemd.ListUnits()
 	if err != nil {
 		return nil, err
@@ -318,4 +317,8 @@ func lsUnitsDir(dir string) ([]string, error) {
 	}
 
 	return pkg.ListDirectory(dir, filterFunc)
+}
+
+func refreshSystemdUnitStateCache() {
+	useSystemdUnitStateCache = false
 }
