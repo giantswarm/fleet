@@ -123,7 +123,7 @@ func TestSaveUnitState(t *testing.T) {
 	us.UnitHash = "quickbrownfox"
 	r.SaveUnitState(j, us, time.Second)
 
-	json := `{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Version":""},"unitHash":"quickbrownfox"}`
+	json := `{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Capabilities":null,"Version":""},"unitHash":"quickbrownfox"}`
 	p1 := "/fleet/state/foo.service"
 	p2 := "/fleet/states/foo.service/mymachine"
 	want := []action{
@@ -312,7 +312,7 @@ func TestGetUnitState(t *testing.T) {
 	}{
 		{
 			// Unit state with no UnitHash should be OK
-			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}}}`),
+			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Capabilities":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}}}`),
 			err: nil,
 			wantUS: &unit.UnitState{
 				LoadState:   "abc",
@@ -325,7 +325,7 @@ func TestGetUnitState(t *testing.T) {
 		},
 		{
 			// Unit state with UnitHash should be OK
-			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}},"unitHash":"quickbrownfox"}`),
+			res: makeResponse(`{"loadState":"abc","activeState":"def","subState":"ghi","machineState":{"ID":"mymachine","PublicIP":"","Metadata":null,"Capabilities":null,"Version":"","TotalResources":{"Cores":0,"Memory":0,"Disk":0},"FreeResources":{"Cores":0,"Memory":0,"Disk":0}},"unitHash":"quickbrownfox"}`),
 			err: nil,
 			wantUS: &unit.UnitState{
 				LoadState:   "abc",
