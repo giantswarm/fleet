@@ -1,8 +1,8 @@
 package machine
 
 const (
-	CapGRPC     = "GRPC"
-	CapNOENGINE = "!ENGINE"
+	CapGRPC   = "GRPC"
+	CapENGINE = "ENGINE"
 )
 
 type Capabilities map[string]bool
