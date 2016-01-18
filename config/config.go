@@ -41,8 +41,8 @@ type Config struct {
 
 func (c *Config) Capabilities() machine.Capabilities {
 	return machine.Capabilities{
-		machine.CapNOENGINE: c.DisableEngine,
-		machine.CapGRPC:     c.EnableGRPC,
+		machine.CapENGINE: !c.DisableEngine,
+		machine.CapGRPC:   c.EnableGRPC,
 	}
 }
 
