@@ -52,7 +52,6 @@ func (r *RPCRegistry) Connect() {
 	var err error
 	r.registryConn, err = grpc.Dial(":fleet-engine:", grpc.WithInsecure(), grpc.WithDialer(r.dialer), grpc.WithTimeout(timeout), grpc.WithBlock())
 	if err != nil {
-		fmt.Println("XXX FAILURE", err)
 		log.Fatalf("unable to connect to registry: %s", err)
 	}
 
@@ -61,9 +60,8 @@ func (r *RPCRegistry) Connect() {
 }
 
 func (r *RPCRegistry) getClient() pb.RegistryClient {
-	// r.connectMu.RLock()
-	// defer r.connectMu.RUnlock()
 	for ; ; time.Sleep(100 * time.Millisecond) {
+		log.Infof("RegistryClient is not initialized, waiting for the connection...")
 		if r.registryClient != nil {
 			break
 		}
@@ -215,12 +213,12 @@ func (r *RPCRegistry) ScheduledUnit(unitName string) (*job.ScheduledUnit, error)
 
 	if scheduledUnit := maybeSchedUnit.GetUnit(); scheduledUnit != nil {
 		state := rpcUnitStateToJobState(scheduledUnit.CurrentState)
-		schedu := &job.ScheduledUnit{
+		scheduledJob := &job.ScheduledUnit{
 			Name:            scheduledUnit.Name,
 			TargetMachineID: scheduledUnit.MachineID,
 			State:           &state,
 		}
-		return schedu, err
+		return scheduledJob, err
 	}
 	return nil, nil
 
