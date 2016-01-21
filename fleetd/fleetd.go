@@ -82,6 +82,7 @@ func main() {
 	cfgset.String("unit_state_ttl", agent.DefaultUnitStateTTL, "TTL in seconds of unit state in etcd")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
+	cfgset.Bool("enable_unitstate_cache", true, "Enable an unit state cache to minimize the systemd and dbus communication overhead.")
 
 	globalconf.Register("", cfgset)
 	cfg, err := getConfig(cfgset, *cfgPath)
@@ -210,8 +211,12 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		UnitStateTTL:            (*flagset.Lookup("unit_state_ttl")).Value.(flag.Getter).Get().(string),
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),
+		EnableUnitStateCache:    (*flagset.Lookup("enable_unitstate_cache")).Value.(flag.Getter).Get().(bool),
 	}
 
+	if cfg.EnableUnitStateCache {
+		log.Info("Config option enable_unitstate_cache is activated")
+	}
 	if cfg.VerifyUnits {
 		log.Error("Config option verify_units is no longer supported - ignoring")
 	}
