@@ -33,6 +33,7 @@ type Config struct {
 	UnitStateTTL            string
 	VerifyUnits             bool
 	AuthorizedKeysFile      string
+	EnableUnitStateCache    bool
 }
 
 func (c *Config) Metadata() map[string]string {
