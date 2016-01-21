@@ -37,6 +37,7 @@ type Config struct {
 	EnableGRPC              bool
 	VerifyUnits             bool
 	AuthorizedKeysFile      string
+	EnableUnitStateCache    bool
 }
 
 func (c *Config) Capabilities() machine.Capabilities {
