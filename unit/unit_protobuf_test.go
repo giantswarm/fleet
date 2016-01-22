@@ -7,7 +7,7 @@ import (
 	pb "github.com/coreos/fleet/protobuf"
 )
 
-func TestRegistryCreation(t *testing.T) {
+func TestUnitFileProtoBuf(t *testing.T) {
 	u, err := NewUnitFile("[Service]\nExecStart=/bin/sleep 100\n")
 	if err != nil {
 		t.Fatalf("Unexpected error encountered creating unit: %v", err)
