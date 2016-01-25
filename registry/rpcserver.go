@@ -216,5 +216,5 @@ func (s *rpcserver) AgentEvents(props *pb.MachineProperties, stream pb.Registry_
 	if DebugRPCServer {
 		defer debug.Exit_(debug.Enter_(props.Id))
 	}
-	return errors.New("AgentEvents function not implemented")
+	return errors.New("agent events function not implemented")
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
 	"github.com/coreos/fleet/log"
 
-	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
+	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -53,7 +53,7 @@ func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, erro
 			log.Infof("connected to engine on %s\n", r.currentEngine.PublicIP)
 			return conn, nil
 		}
-		//log.Errorf("unable to connect to new engine: %+v", err)
+		log.Errorf("unable to connect to new engine: %+v", err)
 		time.Sleep(dialRegistryReconnectTimeout)
 	}
 }
