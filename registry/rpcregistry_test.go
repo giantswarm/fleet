@@ -10,7 +10,7 @@ import (
 	pb "github.com/coreos/fleet/protobuf"
 )
 
-func TestRPCRegistryCreation(t *testing.T) {
+func TestRPCRegistryClientCreation(t *testing.T) {
 	lis, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("Failed to listen: %v", err)
