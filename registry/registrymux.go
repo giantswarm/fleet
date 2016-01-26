@@ -9,8 +9,8 @@ import (
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
 	"github.com/coreos/fleet/log"
 
-	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/job"
+	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -47,7 +47,7 @@ func (r *RegistryMux) StartMux() {
 
 func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, error) {
 	for {
-		addr := fmt.Sprintf("%s:%d", r.currentEngine.PublicIP, port)
+		addr := fmt.Sprintf("%s:%d", r.currentEngine.PublicIP, rpcServerPort)
 		conn, err := net.Dial("tcp", addr)
 		if err == nil {
 			log.Infof("connected to engine on %s\n", r.currentEngine.PublicIP)

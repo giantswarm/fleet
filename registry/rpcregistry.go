@@ -18,10 +18,7 @@ import (
 	"github.com/coreos/fleet/unit"
 )
 
-const (
-	port                  = 50059
-	grpcConnectionTimeout = 500 * time.Millisecond
-)
+const grpcConnectionTimeout = 500 * time.Millisecond
 
 var DebugRPCRegistry bool = false
 
