@@ -9,7 +9,7 @@ import (
 )
 
 func TestInMemoryScheduleUnit(t *testing.T) {
-	inmemoryRegistry := newInmemoryRegistry()
+	inmemoryRegistry := NewInmemoryRegistry()
 
 	scheduleUnit := &pb.ScheduledUnit{
 		Name:         "foo",
@@ -60,7 +60,7 @@ Description = Foo
 }
 
 func TestInMemoryUnitStates(t *testing.T) {
-	inmemoryRegistry := newInmemoryRegistry()
+	inmemoryRegistry := NewInmemoryRegistry()
 
 	scheduleUnit := &pb.ScheduledUnit{
 		Name:         "foo",
