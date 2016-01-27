@@ -11,6 +11,7 @@ import (
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc"
 	"github.com/coreos/fleet/debug"
+	"github.com/coreos/fleet/log"
 	pb "github.com/coreos/fleet/protobuf"
 )
 
@@ -32,7 +33,7 @@ func NewRPCServer(reg Registry, addr string) (*rpcserver, error) {
 	s := &rpcserver{
 		etcdRegistry:  reg,
 		mu:            new(sync.Mutex),
-		localRegistry: NewInmemoryRegistry(),
+		localRegistry: newInmemoryRegistry(),
 		stop:          make(chan struct{}),
 	}
 	var err error
@@ -53,7 +54,7 @@ func NewRPCServer(reg Registry, addr string) (*rpcserver, error) {
 }
 
 func (s *rpcserver) Start() {
-	go s.grpcserver.Serve(s.listener)
+	go log.Fatal(s.grpcserver.Serve(s.listener))
 }
 
 func (s *rpcserver) Stop() {
