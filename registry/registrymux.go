@@ -26,6 +26,8 @@ type RegistryMux struct {
 	handlingEngineChange *sync.RWMutex
 }
 
+const dialRegistryReconnectTimeout = 200 * time.Millisecond
+
 func NewRegistryMux(etcdRegistry *EtcdRegistry, engineChanged chan machine.MachineState, localMachine machine.Machine) *RegistryMux {
 	return &RegistryMux{
 		etcdRegistry:         etcdRegistry,
@@ -45,14 +47,14 @@ func (r *RegistryMux) StartMux() {
 
 func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, error) {
 	for {
-		addr := fmt.Sprintf("%s:%d", r.currentEngine.PublicIP, port)
+		addr := fmt.Sprintf("%s:%d", r.currentEngine.PublicIP, rpcServerPort)
 		conn, err := net.Dial("tcp", addr)
 		if err == nil {
 			log.Infof("connected to engine on %s\n", r.currentEngine.PublicIP)
 			return conn, nil
 		}
-		//log.Errorf("unable to connect to new engine: %+v", err)
-		time.Sleep(time.Millisecond * 200)
+		log.Errorf("unable to connect to new engine: %+v", err)
+		time.Sleep(dialRegistryReconnectTimeout)
 	}
 }
 
@@ -71,7 +73,7 @@ func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 			// start rpc server
 			rpcserver, err := newRPCServer(r.etcdRegistry, newEngine.PublicIP)
 			if err != nil {
-				log.Error("unable to create rpc server %+v", err)
+				log.Errorf("unable to create rpc server %+v", err)
 			}
 			r.rpcserver = rpcserver
 			r.rpcserver.Start()

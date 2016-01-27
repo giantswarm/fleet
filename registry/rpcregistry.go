@@ -1,8 +1,7 @@
 package registry
 
 import (
-	"fmt"
-	"log"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -13,14 +12,13 @@ import (
 
 	"github.com/coreos/fleet/debug"
 	"github.com/coreos/fleet/job"
+	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
 	pb "github.com/coreos/fleet/protobuf"
 	"github.com/coreos/fleet/unit"
 )
 
-const (
-	port = 50059
-)
+const grpcConnectionTimeout = 500 * time.Millisecond
 
 var DebugRPCRegistry bool = false
 
@@ -29,15 +27,12 @@ type RPCRegistry struct {
 	registryConn   *grpc.ClientConn
 	mu             *sync.Mutex
 	dialer         func(addr string, timeout time.Duration) (net.Conn, error)
-
-	connectMu *sync.RWMutex
 }
 
 func NewRPCRegistry(dialer func(string, time.Duration) (net.Conn, error)) *RPCRegistry {
 	return &RPCRegistry{
-		mu:        new(sync.Mutex),
-		connectMu: new(sync.RWMutex),
-		dialer:    dialer,
+		mu:     new(sync.Mutex),
+		dialer: dialer,
 	}
 }
 
@@ -47,23 +42,18 @@ func (r *RPCRegistry) ctx() context.Context {
 }
 
 func (r *RPCRegistry) Connect() {
-	timeout := 500 * time.Millisecond
-	//r.connectMu.Lock()
 	var err error
-	r.registryConn, err = grpc.Dial(":fleet-engine:", grpc.WithInsecure(), grpc.WithDialer(r.dialer), grpc.WithTimeout(timeout), grpc.WithBlock())
+	r.registryConn, err = grpc.Dial(":fleet-engine:", grpc.WithInsecure(), grpc.WithDialer(r.dialer), grpc.WithTimeout(grpcConnectionTimeout), grpc.WithBlock())
 	if err != nil {
-		fmt.Println("XXX FAILURE", err)
-		log.Fatalf("unable to connect to registry: %s", err)
+		log.Fatalf("unable to dial to registry: %s", err)
 	}
 
 	r.registryClient = pb.NewRegistryClient(r.registryConn)
-	//r.connectMu.Unlock()
 }
 
 func (r *RPCRegistry) getClient() pb.RegistryClient {
-	// r.connectMu.RLock()
-	// defer r.connectMu.RUnlock()
 	for ; ; time.Sleep(100 * time.Millisecond) {
+		log.Infof("registry client is not initialized, waiting for the connection...")
 		if r.registryClient != nil {
 			break
 		}
@@ -112,7 +102,7 @@ func (r *RPCRegistry) UnitHeartbeat(unitName, machID string, ttl time.Duration) 
 }
 
 func (r *RPCRegistry) RemoveMachineState(machID string) error {
-	panic("not implemented")
+	return errors.New("remove machine state function not implemented")
 }
 
 func (r *RPCRegistry) RemoveUnitState(unitName string) error {
@@ -173,11 +163,11 @@ func (r *RPCRegistry) UnscheduleUnit(unitName, machID string) error {
 }
 
 func (r *RPCRegistry) Machines() ([]machine.MachineState, error) {
-	panic("not implemented")
+	panic("machines function not implemented")
 }
 
 func (r *RPCRegistry) SetMachineState(ms machine.MachineState, ttl time.Duration) (uint64, error) {
-	panic("not implemented")
+	panic("set machine state function not implemented")
 }
 
 func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
@@ -215,12 +205,12 @@ func (r *RPCRegistry) ScheduledUnit(unitName string) (*job.ScheduledUnit, error)
 
 	if scheduledUnit := maybeSchedUnit.GetUnit(); scheduledUnit != nil {
 		state := rpcUnitStateToJobState(scheduledUnit.CurrentState)
-		schedu := &job.ScheduledUnit{
+		scheduledJob := &job.ScheduledUnit{
 			Name:            scheduledUnit.Name,
 			TargetMachineID: scheduledUnit.MachineID,
 			State:           &state,
 		}
-		return schedu, err
+		return scheduledJob, err
 	}
 	return nil, nil
 
@@ -250,7 +240,7 @@ func (r *RPCRegistry) Units() ([]job.Unit, error) {
 
 	units, err := r.getClient().GetUnits(r.ctx(), &pb.UnitFilter{})
 	if err != nil {
-		//TODO(htr) XXX ERROR me
+		log.Errorf("rpcregistry failed to get the units %v", err)
 		return []job.Unit{}, err
 	}
 
@@ -288,13 +278,13 @@ func (r *RPCRegistry) UnitStates() ([]*unit.UnitState, error) {
 }
 
 func (r *RPCRegistry) EngineVersion() (int, error) {
-	panic("not implemented")
+	return 0, errors.New("engine version function not implemented")
 }
 
 func (r *RPCRegistry) UpdateEngineVersion(from, to int) error {
-	panic("not implemented")
+	return errors.New("update engine version function not implemented")
 }
 
 func (r *RPCRegistry) LatestDaemonVersion() (*semver.Version, error) {
-	panic("not implemented")
+	return nil, errors.New("latest daemon version function not implemented")
 }

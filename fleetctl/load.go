@@ -27,7 +27,7 @@ var (
 		Usage:   "[--no-block|--block-attempts=N] UNIT...",
 		Description: `Load one or many units in the cluster into systemd, but do not start.
 
-Select units to load by glob matching for units in the current working directory 
+Select units to load by glob matching for units in the current working directory
 or matching the names of previously submitted units.
 
 For units which are not global, load operations are performed synchronously,
@@ -42,7 +42,7 @@ units are always non-blocking.`,
 func init() {
 	cmdLoadUnits.Flags.BoolVar(&sharedFlags.Sign, "sign", false, "DEPRECATED - this option cannot be used")
 	cmdLoadUnits.Flags.IntVar(&sharedFlags.BlockAttempts, "block-attempts", 0, "Wait until the jobs are loaded, performing up to N attempts before giving up. A value of 0 indicates no limit. Does not apply to global units.")
-	cmdLoadUnits.Flags.BoolVar(&sharedFlags.NoBlock, "no-block", false, "Do not wait until the jobs have been loaded before exiting. Always the case for global units.")
+	cmdLoadUnits.Flags.BoolVar(&sharedFlags.NoBlock, "no-block", true, "Do not wait until the jobs have been loaded before exiting. Always the case for global units.")
 }
 
 func runLoadUnits(args []string) (exit int) {

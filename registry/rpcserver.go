@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -13,7 +14,9 @@ import (
 	pb "github.com/coreos/fleet/protobuf"
 )
 
-var DebugRPCServer bool = false
+var debugRPCServer bool = false
+
+const rpcServerPort = 50059
 
 type rpcserver struct {
 	etcdRegistry Registry
@@ -33,7 +36,7 @@ func newRPCServer(reg Registry, addr string) (*rpcserver, error) {
 		stop:          make(chan struct{}),
 	}
 	var err error
-	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, port))
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, rpcServerPort))
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +65,7 @@ func (s *rpcserver) Stop() {
 }
 
 func (s *rpcserver) GetScheduledUnits(ctx context.Context, unitFilter *pb.UnitFilter) (*pb.ScheduledUnits, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_())
 	}
 	units, err := s.localRegistry.Schedule()
@@ -71,32 +74,32 @@ func (s *rpcserver) GetScheduledUnits(ctx context.Context, unitFilter *pb.UnitFi
 }
 
 func (s *rpcserver) GetScheduledUnit(ctx context.Context, name *pb.UnitName) (*pb.MaybeScheduledUnit, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(name.Name))
 	}
 
 	su, exists := s.localRegistry.ScheduledUnit(name.Name)
 	if exists {
-		return &pb.MaybeScheduledUnit{IsScheduled: &pb.MaybeScheduledUnit_Unit{su}}, nil
+		return &pb.MaybeScheduledUnit{IsScheduled: &pb.MaybeScheduledUnit_Unit{Unit: su}}, nil
 	}
 	return &pb.MaybeScheduledUnit{IsScheduled: &pb.MaybeScheduledUnit_Notfound{Notfound: &pb.NotFound{}}}, nil
 }
 
 func (s *rpcserver) GetUnit(ctx context.Context, name *pb.UnitName) (*pb.MaybeUnit, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(name.Name))
 	}
 
 	unit, exists := s.localRegistry.Unit(name.Name)
 	if exists {
-		return &pb.MaybeUnit{HasUnit: &pb.MaybeUnit_Unit{&unit}}, nil
+		return &pb.MaybeUnit{HasUnit: &pb.MaybeUnit_Unit{Unit: &unit}}, nil
 	}
 	return &pb.MaybeUnit{HasUnit: &pb.MaybeUnit_Notfound{Notfound: &pb.NotFound{}}}, nil
 
 }
 
 func (s *rpcserver) GetUnits(ctx context.Context, filter *pb.UnitFilter) (*pb.Units, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_())
 	}
 
@@ -105,7 +108,7 @@ func (s *rpcserver) GetUnits(ctx context.Context, filter *pb.UnitFilter) (*pb.Un
 }
 
 func (s *rpcserver) GetUnitStates(ctx context.Context, filter *pb.UnitStateFilter) (*pb.UnitStates, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_())
 	}
 
@@ -115,7 +118,7 @@ func (s *rpcserver) GetUnitStates(ctx context.Context, filter *pb.UnitStateFilte
 }
 
 func (s *rpcserver) ClearUnitHeartbeat(ctx context.Context, name *pb.UnitName) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(name.Name))
 	}
 
@@ -124,7 +127,7 @@ func (s *rpcserver) ClearUnitHeartbeat(ctx context.Context, name *pb.UnitName) (
 }
 
 func (s *rpcserver) CreateUnit(ctx context.Context, u *pb.Unit) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(u.Name))
 	}
 
@@ -136,7 +139,7 @@ func (s *rpcserver) CreateUnit(ctx context.Context, u *pb.Unit) (*pb.GenericRepl
 }
 
 func (s *rpcserver) DestroyUnit(ctx context.Context, name *pb.UnitName) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(name.Name))
 	}
 
@@ -148,7 +151,7 @@ func (s *rpcserver) DestroyUnit(ctx context.Context, name *pb.UnitName) (*pb.Gen
 }
 
 func (s *rpcserver) UnitHeartbeat(ctx context.Context, heartbeat *pb.Heartbeat) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(heartbeat))
 	}
 
@@ -157,7 +160,7 @@ func (s *rpcserver) UnitHeartbeat(ctx context.Context, heartbeat *pb.Heartbeat) 
 }
 
 func (s *rpcserver) RemoveUnitState(ctx context.Context, name *pb.UnitName) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(name.Name))
 	}
 
@@ -166,7 +169,7 @@ func (s *rpcserver) RemoveUnitState(ctx context.Context, name *pb.UnitName) (*pb
 }
 
 func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequest) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(req))
 	}
 
@@ -175,7 +178,7 @@ func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequ
 }
 
 func (s *rpcserver) ScheduleUnit(ctx context.Context, unit *pb.ScheduleUnitRequest) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(unit.Name, unit.MachineID))
 	}
 
@@ -187,7 +190,7 @@ func (s *rpcserver) ScheduleUnit(ctx context.Context, unit *pb.ScheduleUnitReque
 }
 
 func (s *rpcserver) SetUnitTargetState(ctx context.Context, unit *pb.ScheduledUnit) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(unit.Name, unit.CurrentState))
 	}
 
@@ -200,7 +203,7 @@ func (s *rpcserver) SetUnitTargetState(ctx context.Context, unit *pb.ScheduledUn
 }
 
 func (s *rpcserver) UnscheduleUnit(ctx context.Context, unit *pb.UnscheduleUnitRequest) (*pb.GenericReply, error) {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(unit.Name, unit.MachineID))
 	}
 
@@ -210,18 +213,10 @@ func (s *rpcserver) UnscheduleUnit(ctx context.Context, unit *pb.UnscheduleUnitR
 	}
 	return &pb.GenericReply{}, err
 }
-func (s *rpcserver) Identify(ctx context.Context, props *pb.MachineProperties) (*pb.GenericReply, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	//	TODO(htr)
-	return nil, nil
-}
 
 func (s *rpcserver) AgentEvents(props *pb.MachineProperties, stream pb.Registry_AgentEventsServer) error {
-	if DebugRPCServer {
+	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(props.Id))
 	}
-	//TODO(htr)
-
-	return nil
+	return errors.New("agent events function not implemented")
 }
