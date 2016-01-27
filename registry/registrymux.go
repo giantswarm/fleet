@@ -48,6 +48,7 @@ func (r *RegistryMux) StartMux() {
 func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, error) {
 	for {
 		addr := fmt.Sprintf("%s:%d", r.currentEngine.PublicIP, rpcServerPort)
+		//TODO(hector) Why don't we use grpc ?
 		conn, err := net.Dial("tcp", addr)
 		if err == nil {
 			log.Infof("connected to engine on %s\n", r.currentEngine.PublicIP)
@@ -69,14 +70,20 @@ func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 			r.rpcserver = nil
 		}
 		if newEngine.ID == r.localMachine.State().ID {
-			log.Infof("starting rpc server\n")
-			// start rpc server
-			rpcserver, err := newRPCServer(r.etcdRegistry, newEngine.PublicIP)
-			if err != nil {
-				log.Errorf("unable to create rpc server %+v", err)
+			// TODO(hector): Why not to check if rpcserver is running otherwise create and start it ?
+			if r.rpcserver == nil {
+				// start rpc server
+				log.Infof("starting rpc server\n")
+				var err error
+				r.rpcserver, err = NewRPCServer(r.etcdRegistry, newEngine.PublicIP)
+				if err != nil {
+					// TODO(hector): This should be a Fatal log
+					log.Fatalf("unable to create rpc server %+v", err)
+				}
+				r.rpcserver.Start()
+			} else {
+				log.Infof("using running rpc server\n")
 			}
-			r.rpcserver = rpcserver
-			r.rpcserver.Start()
 		}
 		if newEngine.Capabilities.Has(machine.CapGRPC) {
 			log.Infof("new engine supports GRPC, connecting\n")

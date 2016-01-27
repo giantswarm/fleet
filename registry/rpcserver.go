@@ -28,11 +28,11 @@ type rpcserver struct {
 	localRegistry *inmemoryRegistry
 }
 
-func newRPCServer(reg Registry, addr string) (*rpcserver, error) {
+func NewRPCServer(reg Registry, addr string) (*rpcserver, error) {
 	s := &rpcserver{
 		etcdRegistry:  reg,
 		mu:            new(sync.Mutex),
-		localRegistry: newInmemoryRegistry(),
+		localRegistry: NewInmemoryRegistry(),
 		stop:          make(chan struct{}),
 	}
 	var err error
