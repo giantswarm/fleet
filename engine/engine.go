@@ -44,7 +44,7 @@ type Engine struct {
 	lease   lease.Lease
 	trigger chan struct{}
 
-	engineStateUpdate func(machine.MachineState)
+	stateChangeChannel chan machine.MachineState
 }
 
 type CompleteRegistry interface {
@@ -52,17 +52,17 @@ type CompleteRegistry interface {
 	registry.ClusterRegistry
 }
 
-func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, engineStateUpdate func(machine.MachineState)) *Engine {
+func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, stateChangeChannel chan machine.MachineState) *Engine {
 	rec := NewReconciler()
 	return &Engine{
-		rec:               rec,
-		registry:          reg,
-		cRegistry:         reg,
-		lManager:          lManager,
-		rStream:           rStream,
-		machine:           mach,
-		trigger:           make(chan struct{}),
-		engineStateUpdate: engineStateUpdate,
+		rec:                rec,
+		registry:           reg,
+		cRegistry:          reg,
+		lManager:           lManager,
+		rStream:            rStream,
+		machine:            mach,
+		trigger:            make(chan struct{}),
+		stateChangeChannel: stateChangeChannel,
 	}
 }
 
@@ -109,16 +109,15 @@ func (e *Engine) Run(ival time.Duration, stop <-chan struct{}) {
 		}
 
 		e.lease = l
-
-		e.registry.Machines()
-
 		if e.lease != nil && previousEngine != e.lease.MachineID() {
 			engineState, err := e.getMachineState(e.lease.MachineID())
 			if err != nil {
 				log.Errorf("failed to get machine state for machine %s %v", e.lease.MachineID(), err)
 			}
 			if engineState != nil {
-				go e.engineStateUpdate(*engineState)
+				go func() {
+					e.stateChangeChannel <- *engineState
+				}()
 			}
 		}
 
