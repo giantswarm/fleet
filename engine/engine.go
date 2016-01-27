@@ -44,7 +44,7 @@ type Engine struct {
 	lease   lease.Lease
 	trigger chan struct{}
 
-	engineChanged chan machine.MachineState
+	engineStateUpdate func(machine.MachineState)
 }
 
 type CompleteRegistry interface {
@@ -52,33 +52,32 @@ type CompleteRegistry interface {
 	registry.ClusterRegistry
 }
 
-func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, engineChanged chan machine.MachineState) *Engine {
+func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, engineStateUpdate func(machine.MachineState)) *Engine {
 	rec := NewReconciler()
 	return &Engine{
-		rec:           rec,
-		registry:      reg,
-		cRegistry:     reg,
-		lManager:      lManager,
-		rStream:       rStream,
-		machine:       mach,
-		trigger:       make(chan struct{}),
-		engineChanged: engineChanged,
+		rec:               rec,
+		registry:          reg,
+		cRegistry:         reg,
+		lManager:          lManager,
+		rStream:           rStream,
+		machine:           mach,
+		trigger:           make(chan struct{}),
+		engineStateUpdate: engineStateUpdate,
 	}
 }
 
-func (e *Engine) getMachineState(machID string) *machine.MachineState {
+func (e *Engine) getMachineState(machID string) (*machine.MachineState, error) {
 	machines, err := e.registry.Machines()
 	if err != nil {
-		// LOG XXX me
-		return nil
+		return nil, err
 	}
 
 	for _, s := range machines {
 		if s.ID == machID {
-			return &s
+			return &s, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (e *Engine) Run(ival time.Duration, stop chan bool) {
@@ -114,12 +113,12 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 		e.registry.Machines()
 
 		if e.lease != nil && previousEngine != e.lease.MachineID() {
-			engineState := e.getMachineState(e.lease.MachineID())
+			engineState, err := e.getMachineState(e.lease.MachineID())
+			if err != nil {
+				log.Errorf("failed to get machine state for machine %s %v", e.lease.MachineID(), err)
+			}
 			if engineState != nil {
-				go func() {
-					//TODO(htr) XXX synchronous delivery might be too asynchronous here.
-					e.engineChanged <- *engineState
-				}()
+				go e.engineStateUpdate(*engineState)
 			}
 		}
 
