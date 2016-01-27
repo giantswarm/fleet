@@ -91,9 +91,15 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
+	// this needs some thought. a channel, being unidirectionally synchronous is probably
+	// not the best option to use here. TODO(htr)
+	engineChanged := make(chan machine.MachineState)
+
 	etcdRequestTimeout := time.Duration(cfg.EtcdRequestTimeout*1000) * time.Millisecond
 	kAPI := etcd.NewKeysAPI(eClient)
-	reg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+	etcdReg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+	reg := registry.NewRegistryMux(etcdReg, engineChanged, mach)
+	reg.StartMux()
 
 	pub := agent.NewUnitStatePublisher(reg, mach, agentTTL)
 	gen := unit.NewUnitStateGenerator(mgr)
@@ -105,7 +111,7 @@ func New(cfg config.Config) (*Server, error) {
 
 	ar := agent.NewReconciler(reg, rStream)
 
-	e := engine.New(reg, lManager, rStream, mach)
+	e := engine.New(reg, lManager, rStream, mach, engineChanged)
 
 	listeners, err := activation.Listeners(false)
 	if err != nil {
@@ -140,9 +146,10 @@ func New(cfg config.Config) (*Server, error) {
 
 func newMachineFromConfig(cfg config.Config, mgr unit.UnitManager) (*machine.CoreOSMachine, error) {
 	state := machine.MachineState{
-		PublicIP: cfg.PublicIP,
-		Metadata: cfg.Metadata(),
-		Version:  version.Version,
+		PublicIP:     cfg.PublicIP,
+		Metadata:     cfg.Metadata(),
+		Capabilities: cfg.Capabilities(),
+		Version:      version.Version,
 	}
 
 	mach := machine.NewCoreOSMachine(state, mgr)
