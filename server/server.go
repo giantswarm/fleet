@@ -104,6 +104,7 @@ func New(cfg config.Config) (*Server, error) {
 	kAPI := etcd.NewKeysAPI(eClient)
 	etcdReg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
 	reg := registry.NewRegistryMux(etcdReg, engineChanged, mach)
+	//TODO(hector) Why do you start the registryMux here? it would be started after in s.Run()
 	reg.StartMux()
 
 	pub := agent.NewUnitStatePublisher(reg, mach, agentTTL)
@@ -119,7 +120,7 @@ func New(cfg config.Config) (*Server, error) {
 
 	ar := agent.NewReconciler(reg, rStream)
 
-	e := engine.New(reg, lManager, rStream, mach, engineChanged)
+	e := engine.New(reg, lManager, rStream, mach, reg.EngineChanged)
 
 	listeners, err := activation.Listeners(false)
 	if err != nil {
