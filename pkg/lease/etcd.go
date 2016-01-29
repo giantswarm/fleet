@@ -55,7 +55,17 @@ func (l *etcdLease) Renew(period time.Duration) error {
 		PrevIndex: l.idx,
 		TTL:       period,
 	}
-	resp, err := l.mgr.kAPI.Set(l.mgr.ctx(), l.key, val, opts)
+
+	var resp *etcd.Response
+	for i := 0; i < 3; i++ {
+		//TODO(hector): Added patch to avoid key not found when querying /_coreos.com/fleet/lease/engine-leader .. etcd DoS
+		resp, err = l.mgr.kAPI.Set(l.mgr.ctx(), l.key, val, opts)
+		if err != nil {
+			time.Sleep(200 * time.Millisecond)
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		return err
 	}
