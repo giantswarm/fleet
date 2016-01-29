@@ -17,7 +17,11 @@ import (
 
 var debugRPCServer bool = false
 
-const rpcServerPort = 50059
+const (
+	rpcServerPort    = 50059
+	bindAddrMaxRetry = 5
+	bindRetryTimeout = 500 * time.Millisecond
+)
 
 type rpcserver struct {
 	etcdRegistry Registry
@@ -41,7 +45,14 @@ func NewRPCServer(reg Registry, addr string) (*rpcserver, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.listener, err = net.ListenTCP("tcp", tcpAddr)
+	for it := 0; it < bindAddrMaxRetry; it++ {
+		s.listener, err = net.ListenTCP("tcp", tcpAddr)
+		if err == nil {
+			break
+		}
+		log.Infof("retrying %d to bind %s address... %v", it, tcpAddr, err)
+		time.Sleep(bindRetryTimeout)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +64,8 @@ func NewRPCServer(reg Registry, addr string) (*rpcserver, error) {
 	return s, nil
 }
 
-func (s *rpcserver) Start() {
-	go log.Fatal(s.grpcserver.Serve(s.listener))
+func (s *rpcserver) Start() error {
+	return s.grpcserver.Serve(s.listener)
 }
 
 func (s *rpcserver) Stop() {

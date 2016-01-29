@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
-	"github.com/coreos/fleet/log"
 
 	"github.com/coreos/fleet/job"
+	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/unit"
 )
@@ -76,14 +76,26 @@ func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 			if err != nil {
 				log.Fatalf("unable to create rpc server %+v", err)
 			}
-			r.rpcserver.Start()
+
+			go func() {
+				errc := make(chan error, 1)
+				if errc <- r.rpcserver.Start(); <-errc != nil {
+					log.Fatalf("failed to serve grpc requests on listener: %v", <-errc)
+				}
+			}()
 		}
 		if newEngine.Capabilities.Has(machine.CapGRPC) {
 			log.Infof("new engine supports GRPC, connecting\n")
-			if r.rpcRegistry == nil {
-				r.rpcRegistry = NewRPCRegistry(r.rpcDialer)
-				r.rpcRegistry.Connect()
+			if r.rpcRegistry != nil {
+				log.Infof("closing existing grpc connection\n")
+				r.rpcRegistry.Close()
+				time.Sleep(1 * time.Second)
 			}
+
+			log.Infof("creating a new rpc registry\n")
+			r.rpcRegistry = NewRPCRegistry(r.rpcDialer)
+			r.rpcRegistry.Connect()
+
 			r.currentRegistry = r.rpcRegistry
 			// connect to rpc registry
 		} else {
