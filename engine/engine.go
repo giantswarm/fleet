@@ -16,6 +16,7 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/coreos/fleet/log"
@@ -44,7 +45,7 @@ type Engine struct {
 	lease   lease.Lease
 	trigger chan struct{}
 
-	stateChangeChannel chan machine.MachineState
+	updateEngineState func(newEngine machine.MachineState)
 }
 
 type CompleteRegistry interface {
@@ -52,17 +53,17 @@ type CompleteRegistry interface {
 	registry.ClusterRegistry
 }
 
-func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, stateChangeChannel chan machine.MachineState) *Engine {
+func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, updateEngineState func(newEngine machine.MachineState)) *Engine {
 	rec := NewReconciler()
 	return &Engine{
-		rec:                rec,
-		registry:           reg,
-		cRegistry:          reg,
-		lManager:           lManager,
-		rStream:            rStream,
-		machine:            mach,
-		trigger:            make(chan struct{}),
-		stateChangeChannel: stateChangeChannel,
+		rec:               rec,
+		registry:          reg,
+		cRegistry:         reg,
+		lManager:          lManager,
+		rStream:           rStream,
+		machine:           mach,
+		trigger:           make(chan struct{}),
+		updateEngineState: updateEngineState,
 	}
 }
 
@@ -91,6 +92,7 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 
 		var previousEngine string
 		if e.lease != nil {
+			log.Infof("Machine state ID: %s --- Lease Machine ID: %s", machID, e.lease.MachineID())
 			previousEngine = e.lease.MachineID()
 		}
 
@@ -115,9 +117,8 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 				log.Errorf("failed to get machine state for machine %s %v", e.lease.MachineID(), err)
 			}
 			if engineState != nil {
-				go func() {
-					e.stateChangeChannel <- *engineState
-				}()
+				log.Infof("Updating engine state...")
+				go e.updateEngineState(*engineState)
 			}
 		}
 
@@ -250,9 +251,21 @@ func acquireLeadership(lManager lease.Manager, machID string, ver int, ttl time.
 }
 
 func renewLeadership(l lease.Lease, ttl time.Duration) lease.Lease {
-	err := l.Renew(ttl)
+	var err error
+	for i := 0; i < 5; i++ {
+		//TODO(hector): Only for tests, I added patch to avoid key not found when querying /_coreos.com/fleet/lease/engine-leader .. etcd DoS
+		err = l.Renew(ttl)
+		if err != nil && strings.Contains(err.Error(), "Key not found") {
+			log.Errorf("Retry renew etcd operation that failed due to %v", err)
+			time.Sleep(200 * time.Millisecond)
+		} else if err != nil {
+			log.Errorf("Renew leadership error %v", err.Error())
+		} else {
+			break
+		}
+	}
 	if err != nil {
-		log.Errorf("Engine leadership lost, renewal failed: %v", err)
+		log.Errorf("Engine leadership lost, renewal failed: %v", err.Error())
 		return nil
 	}
 

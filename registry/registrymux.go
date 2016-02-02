@@ -15,34 +15,28 @@ import (
 )
 
 type RegistryMux struct {
-	etcdRegistry      *EtcdRegistry
-	engineChangedChan chan machine.MachineState
-	localMachine      machine.Machine
-	rpcserver         *rpcserver
-	currentRegistry   Registry
-	rpcRegistry       *RPCRegistry
-	currentEngine     machine.MachineState
+	etcdRegistry    *EtcdRegistry
+	localMachine    machine.Machine
+	rpcserver       *rpcserver
+	currentRegistry Registry
+	rpcRegistry     *RPCRegistry
+	currentEngine   machine.MachineState
 
 	handlingEngineChange *sync.RWMutex
 }
 
 const dialRegistryReconnectTimeout = 200 * time.Millisecond
 
-func NewRegistryMux(etcdRegistry *EtcdRegistry, engineChanged chan machine.MachineState, localMachine machine.Machine) *RegistryMux {
+func NewRegistryMux(etcdRegistry *EtcdRegistry, localMachine machine.Machine) *RegistryMux {
 	return &RegistryMux{
 		etcdRegistry:         etcdRegistry,
-		engineChangedChan:    engineChanged,
 		localMachine:         localMachine,
 		handlingEngineChange: new(sync.RWMutex),
 	}
 }
 
 func (r *RegistryMux) StartMux() {
-	go func() {
-		for newEngine := range r.engineChangedChan {
-			r.EngineChanged(newEngine)
-		}
-	}()
+	r.EngineChanged(r.localMachine.State())
 }
 
 func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, error) {
@@ -86,13 +80,7 @@ func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 		}
 		if newEngine.Capabilities.Has(machine.CapGRPC) {
 			log.Infof("new engine supports GRPC, connecting\n")
-			if r.rpcRegistry != nil {
-				log.Infof("closing existing grpc connection\n")
-				r.rpcRegistry.Close()
-				time.Sleep(1 * time.Second)
-			}
 
-			log.Infof("creating a new rpc registry\n")
 			r.rpcRegistry = NewRPCRegistry(r.rpcDialer)
 			r.rpcRegistry.Connect()
 

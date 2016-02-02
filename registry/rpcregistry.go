@@ -9,7 +9,6 @@ import (
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
 	"github.com/coreos/fleet/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc"
-	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc/codes"
 
 	"github.com/coreos/fleet/debug"
 	"github.com/coreos/fleet/job"
@@ -20,10 +19,8 @@ import (
 )
 
 const grpcConnectionTimeout = 500 * time.Millisecond
-const maxDeadlineExceededErrors = 8
 
 var DebugRPCRegistry bool = false
-var counterDeadlineExceededErrors = 0
 
 type RPCRegistry struct {
 	registryClient pb.RegistryClient
@@ -44,27 +41,24 @@ func (r *RPCRegistry) ctx() context.Context {
 	return ctx
 }
 
-func (r *RPCRegistry) notifyError(err error) {
-	if grpc.Code(err) == codes.DeadlineExceeded {
-		counterDeadlineExceededErrors += 1
-		//TODO(hector): Added to avoid frequent deadline exceed errors
-		if counterDeadlineExceededErrors > maxDeadlineExceededErrors {
-			log.Errorf("error deadline exceeded connection state %s %v", r.connection.State().String(), err.Error())
-			r.Close()
+func (r *RPCRegistry) getClient() pb.RegistryClient {
+	for {
+		state := r.connection.State().String()
+		if state == "READY" {
+			break
+		} else if state == "CONNECTING" {
+			if DebugRPCRegistry {
+				log.Infof("grpc connection state: %s", state)
+			}
+			continue
+		} else if state == "TRANSIENT_FAILURE" || state == "SHUTDOWN" {
+			log.Infof("grpc connection state: %s", state)
+			log.Info("reconnecting grpc peer to fleet-engine...")
 			r.Connect()
-			log.Infof("reconnection grpc closed!")
-			counterDeadlineExceededErrors = 0
 		}
-	} else if grpc.Code(err) == 13 {
-		// transport.ErrConnClosing
-		//TODO(hector): When closing the client connection so request can get broken...
-		log.Warning("Waiting for 500ms the connection is closing...")
-		time.Sleep(500 * time.Millisecond)
 	}
-}
 
-func (r *RPCRegistry) Close() {
-	r.connection.Close()
+	return r.registryClient
 }
 
 func (r *RPCRegistry) Connect() {
@@ -77,21 +71,6 @@ func (r *RPCRegistry) Connect() {
 	r.connection = registryConn
 	r.registryClient = pb.NewRegistryClient(registryConn)
 	log.Info("connected succesfully to fleet-engine via grpc!")
-}
-
-func (r *RPCRegistry) getClient() pb.RegistryClient {
-	switch r.connection.State().String() {
-	case "TRANSIENT_FAILURE":
-		log.Info("grpc connection state %s", r.connection.State().String())
-		log.Info("reconnection grpc peer to fleet-engine...")
-		r.Connect()
-	case "SHUTDOWN":
-		log.Info("grpc connection state %s", r.connection.State().String())
-		log.Info("reconnection grpc peer to fleet-engine...")
-		r.Connect()
-	}
-
-	return r.registryClient
 }
 
 func (r *RPCRegistry) ClearUnitHeartbeat(unitName string) {
@@ -210,7 +189,6 @@ func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
 
 	scheduledUnits, err := r.getClient().GetScheduledUnits(r.ctx(), &pb.UnitFilter{})
 	if err != nil {
-		r.notifyError(err)
 		return []job.ScheduledUnit{}, err
 	}
 	units := make([]job.ScheduledUnit, len(scheduledUnits.Units))
@@ -234,7 +212,6 @@ func (r *RPCRegistry) ScheduledUnit(unitName string) (*job.ScheduledUnit, error)
 	maybeSchedUnit, err := r.getClient().GetScheduledUnit(r.ctx(), &pb.UnitName{unitName})
 
 	if err != nil {
-		r.notifyError(err)
 		return nil, err
 	}
 
@@ -258,7 +235,6 @@ func (r *RPCRegistry) Unit(unitName string) (*job.Unit, error) {
 
 	maybeUnit, err := r.getClient().GetUnit(r.ctx(), &pb.UnitName{unitName})
 	if err != nil {
-		r.notifyError(err)
 		return nil, err
 	}
 
@@ -276,7 +252,6 @@ func (r *RPCRegistry) Units() ([]job.Unit, error) {
 
 	units, err := r.getClient().GetUnits(r.ctx(), &pb.UnitFilter{})
 	if err != nil {
-		r.notifyError(err)
 		log.Errorf("rpcregistry failed to get the units %v", err)
 		return []job.Unit{}, err
 	}
@@ -296,7 +271,6 @@ func (r *RPCRegistry) UnitStates() ([]*unit.UnitState, error) {
 
 	unitStates, err := r.getClient().GetUnitStates(r.ctx(), &pb.UnitStateFilter{})
 	if err != nil {
-		r.notifyError(err)
 		return nil, err
 	}
 
