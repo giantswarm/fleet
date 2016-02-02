@@ -91,13 +91,10 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	engineChanged := make(chan machine.MachineState)
-
 	etcdRequestTimeout := time.Duration(cfg.EtcdRequestTimeout*1000) * time.Millisecond
 	kAPI := etcd.NewKeysAPI(eClient)
 	etcdReg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
-	reg := registry.NewRegistryMux(etcdReg, engineChanged, mach)
-	reg.StartMux()
+	reg := registry.NewRegistryMux(etcdReg, mach)
 
 	pub := agent.NewUnitStatePublisher(reg, mach, agentTTL)
 	gen := unit.NewUnitStateGenerator(mgr)
@@ -109,7 +106,7 @@ func New(cfg config.Config) (*Server, error) {
 
 	ar := agent.NewReconciler(reg, rStream)
 
-	e := engine.New(reg, lManager, rStream, mach, engineChanged)
+	e := engine.New(reg, lManager, rStream, mach, reg.EngineChanged)
 
 	listeners, err := activation.Listeners(false)
 	if err != nil {
