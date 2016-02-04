@@ -16,6 +16,7 @@
 		ScheduleUnitRequest
 		UnscheduleUnitRequest
 		SaveUnitStateRequest
+		SaveUnitStatesRequest
 		Heartbeat
 		GenericReply
 		Units
@@ -137,6 +138,20 @@ func (*SaveUnitStateRequest) ProtoMessage() {}
 func (m *SaveUnitStateRequest) GetState() *UnitState {
 	if m != nil {
 		return m.State
+	}
+	return nil
+}
+
+type SaveUnitStatesRequest struct {
+	UnitStates []*SaveUnitStateRequest `protobuf:"bytes,1,rep,name=save_unit_states" json:"save_unit_states,omitempty"`
+}
+
+func (m *SaveUnitStatesRequest) Reset()      { *m = SaveUnitStatesRequest{} }
+func (*SaveUnitStatesRequest) ProtoMessage() {}
+
+func (m *SaveUnitStatesRequest) GetUnitStates() []*SaveUnitStateRequest {
+	if m != nil {
+		return m.UnitStates
 	}
 	return nil
 }
@@ -481,6 +496,7 @@ func init() {
 	proto.RegisterType((*ScheduleUnitRequest)(nil), "rpc.ScheduleUnitRequest")
 	proto.RegisterType((*UnscheduleUnitRequest)(nil), "rpc.UnscheduleUnitRequest")
 	proto.RegisterType((*SaveUnitStateRequest)(nil), "rpc.SaveUnitStateRequest")
+	proto.RegisterType((*SaveUnitStatesRequest)(nil), "rpc.SaveUnitStatesRequest")
 	proto.RegisterType((*Heartbeat)(nil), "rpc.Heartbeat")
 	proto.RegisterType((*GenericReply)(nil), "rpc.GenericReply")
 	proto.RegisterType((*Units)(nil), "rpc.Units")
@@ -711,6 +727,36 @@ func (this *SaveUnitStateRequest) Equal(that interface{}) bool {
 	}
 	return true
 }
+func (this *SaveUnitStatesRequest) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*SaveUnitStatesRequest)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if len(this.UnitStates) != len(that1.UnitStates) {
+		return false
+	}
+	for i := range this.UnitStates {
+		if !this.UnitStates[i].Equal(&that1.UnitStates[i]) {
+			return false
+		}
+	}
+	return true
+}
 func (this *Heartbeat) Equal(that interface{}) bool {
 	if that == nil {
 		if this == nil {
@@ -789,36 +835,6 @@ func (this *Units) Equal(that interface{}) bool {
 	}
 	for i := range this.Units {
 		if !this.Units[i].Equal(&that1.Units[i]) {
-			return false
-		}
-	}
-	return true
-}
-func (this *UnitStates) Equal(that interface{}) bool {
-	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	}
-
-	that1, ok := that.(*UnitStates)
-	if !ok {
-		return false
-	}
-	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
-	} else if this == nil {
-		return false
-	}
-	if len(this.UnitStates) != len(that1.UnitStates) {
-		return false
-	}
-	for i := range this.UnitStates {
-		if !this.UnitStates[i].Equal(that1.UnitStates[i]) {
 			return false
 		}
 	}
@@ -1307,6 +1323,18 @@ func (this *SaveUnitStateRequest) GoString() string {
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
+func (this *SaveUnitStatesRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&rpc.SaveUnitStatesRequest{")
+	if this.UnitStates != nil {
+		s = append(s, "UnitStates: "+fmt.Sprintf("%#v", this.UnitStates)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
 func (this *Heartbeat) GoString() string {
 	if this == nil {
 		return "nil"
@@ -1551,6 +1579,7 @@ type RegistryClient interface {
 	// mix heartbeat with *ttl''
 	RemoveUnitState(ctx context.Context, in *UnitName, opts ...grpc.CallOption) (*GenericReply, error)
 	SaveUnitState(ctx context.Context, in *SaveUnitStateRequest, opts ...grpc.CallOption) (*GenericReply, error)
+	SaveUnitStates(ctx context.Context, in *SaveUnitStatesRequest, opts ...grpc.CallOption) (*GenericReply, error)
 	ScheduleUnit(ctx context.Context, in *ScheduleUnitRequest, opts ...grpc.CallOption) (*GenericReply, error)
 	SetUnitTargetState(ctx context.Context, in *ScheduledUnit, opts ...grpc.CallOption) (*GenericReply, error)
 	UnscheduleUnit(ctx context.Context, in *UnscheduleUnitRequest, opts ...grpc.CallOption) (*GenericReply, error)
@@ -1664,6 +1693,15 @@ func (c *registryClient) SaveUnitState(ctx context.Context, in *SaveUnitStateReq
 	return out, nil
 }
 
+func (c *registryClient) SaveUnitStates(ctx context.Context, in *SaveUnitStatesRequest, opts ...grpc.CallOption) (*GenericReply, error) {
+	out := new(GenericReply)
+	err := grpc.Invoke(ctx, "/rpc.Registry/SaveUnitStates", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *registryClient) ScheduleUnit(ctx context.Context, in *ScheduleUnitRequest, opts ...grpc.CallOption) (*GenericReply, error) {
 	out := new(GenericReply)
 	err := grpc.Invoke(ctx, "/rpc.Registry/ScheduleUnit", in, out, c.cc, opts...)
@@ -1742,6 +1780,7 @@ type RegistryServer interface {
 	// mix heartbeat with *ttl''
 	RemoveUnitState(context.Context, *UnitName) (*GenericReply, error)
 	SaveUnitState(context.Context, *SaveUnitStateRequest) (*GenericReply, error)
+	SaveUnitStates(context.Context, *SaveUnitStatesRequest) (*GenericReply, error)
 	ScheduleUnit(context.Context, *ScheduleUnitRequest) (*GenericReply, error)
 	SetUnitTargetState(context.Context, *ScheduledUnit) (*GenericReply, error)
 	UnscheduleUnit(context.Context, *UnscheduleUnitRequest) (*GenericReply, error)
@@ -1884,6 +1923,18 @@ func _Registry_SaveUnitState_Handler(srv interface{}, ctx context.Context, dec f
 	return out, nil
 }
 
+func _Registry_SaveUnitStates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
+	in := new(SaveUnitStatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	out, err := srv.(RegistryServer).SaveUnitStates(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func _Registry_ScheduleUnit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
 	in := new(ScheduleUnitRequest)
 	if err := dec(in); err != nil {
@@ -1988,6 +2039,10 @@ var _Registry_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SaveUnitState",
 			Handler:    _Registry_SaveUnitState_Handler,
+		},
+		{
+			MethodName: "SaveUnitStates",
+			Handler:    _Registry_SaveUnitStates_Handler,
 		},
 		{
 			MethodName: "ScheduleUnit",
@@ -2241,6 +2296,36 @@ func (m *SaveUnitStateRequest) MarshalTo(data []byte) (int, error) {
 		data[i] = 0x18
 		i++
 		i = encodeVarintFleet(data, i, uint64(m.TTL))
+	}
+	return i, nil
+}
+
+func (m *SaveUnitStatesRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *SaveUnitStatesRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.UnitStates) > 0 {
+		for _, msg := range m.UnitStates {
+			data[i] = 0xa
+			i++
+			i = encodeVarintFleet(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
 	}
 	return i, nil
 }
@@ -2862,6 +2947,18 @@ func (m *SaveUnitStateRequest) Size() (n int) {
 	return n
 }
 
+func (m *SaveUnitStatesRequest) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.UnitStates) > 0 {
+		for _, e := range m.UnitStates {
+			l = e.Size()
+			n += 1 + l + sovFleet(uint64(l))
+		}
+	}
+	return n
+}
+
 func (m *Heartbeat) Size() (n int) {
 	var l int
 	_ = l
@@ -3172,6 +3269,15 @@ func (this *SaveUnitStateRequest) String() string {
 		`State:` + strings.Replace(fmt.Sprintf("%v", this.State), "UnitState", "UnitState", 1) + `,`,
 		`TTL:` + fmt.Sprintf("%v", this.TTL) + `,`,
 		`}`,
+	}, "")
+	return s
+}
+func (this *SaveUnitStatesRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&SaveUnitStatesRequest{`,
+		`UnitStates:` + strings.Replace(fmt.Sprintf("%v", this.UnitStates), "UnitState", "UnitState", 1) + `,`,
 	}, "")
 	return s
 }
@@ -4161,6 +4267,87 @@ func (m *SaveUnitStateRequest) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipFleet(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthFleet
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SaveUnitStatesRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowFleet
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SaveUnitStatesRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SaveUnitStatesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SaveUnitStatesRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowFleet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthFleet
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UnitStates = append(m.UnitStates, &SaveUnitStateRequest{})
+			if err := m.UnitStates[len(m.UnitStates)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipFleet(data[iNdEx:])

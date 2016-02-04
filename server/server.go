@@ -184,7 +184,7 @@ func (s *Server) Run() {
 		go s.engine.Run(s.engineReconcileInterval, s.stop)
 	}
 
-	beatchan := make(chan *unit.UnitStateHeartbeat)
+	beatchan := make(chan *unit.UnitStateHeartbeats)
 	go s.usGen.Run(beatchan, s.stop)
 	go s.usPub.Run(beatchan, s.stop)
 }

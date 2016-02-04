@@ -12,6 +12,8 @@ import (
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/unit"
+	pb "github.com/coreos/fleet/protobuf"
+
 )
 
 type RegistryMux struct {
@@ -136,6 +138,10 @@ func (r *RegistryMux) RemoveUnitState(jobName string) error {
 
 func (r *RegistryMux) SaveUnitState(jobName string, unitState *unit.UnitState, ttl time.Duration) {
 	r.getRegistry().SaveUnitState(jobName, unitState, ttl)
+}
+
+func (r *RegistryMux) SaveUnitStates(unitStates []*pb.SaveUnitStateRequest) {
+	r.getRegistry().SaveUnitStates(unitStates)
 }
 
 func (r *RegistryMux) ScheduleUnit(name string, machID string) error {
