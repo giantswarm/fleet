@@ -27,6 +27,10 @@ type UnitStateHeartbeat struct {
 	State *UnitState
 }
 
+type UnitStateHeartbeats struct {
+	States []*UnitStateHeartbeat
+}
+
 func NewUnitStateGenerator(mgr UnitManager) *UnitStateGenerator {
 	return &UnitStateGenerator{
 		mgr:        mgr,
@@ -75,7 +79,7 @@ func (g *UnitStateGenerator) Run(receiver chan<- *UnitStateHeartbeat, stop <-cha
 
 // Generate returns and fills a channel with *UnitStateHeartbeat objects. Objects will
 // only be returned for units to which this generator is currently subscribed.
-func (g *UnitStateGenerator) Generate() (<-chan *UnitStateHeartbeat, error) {
+func (g *UnitStateGenerator) Generate() (<-chan *UnitStateHeartbeats, error) {
 	var lastSubscribed pkg.Set
 	if g.lastSubscribed != nil {
 		lastSubscribed = g.lastSubscribed.Copy()
@@ -89,14 +93,17 @@ func (g *UnitStateGenerator) Generate() (<-chan *UnitStateHeartbeat, error) {
 		return nil, err
 	}
 
-	beatchan := make(chan *UnitStateHeartbeat)
+	beatchan := make(chan *UnitStateHeartbeats)
 	go func() {
+		reports := make([]*UnitStateHeartbeat, 0)
 		for name, us := range reportable {
-			us := us
-			beatchan <- &UnitStateHeartbeat{
+			us.UnitName = name
+			heartbeat := &UnitStateHeartbeat{
 				Name:  name,
 				State: us,
 			}
+			reports = append(reports, heartbeat)
+
 		}
 
 		if lastSubscribed != nil {
@@ -104,10 +111,15 @@ func (g *UnitStateGenerator) Generate() (<-chan *UnitStateHeartbeat, error) {
 			// last time Generate ran, but are now not part of that
 			// list, send nil-State heartbeats to signal removal
 			for _, name := range lastSubscribed.Sub(subscribed).Values() {
-				beatchan <- &UnitStateHeartbeat{
+				heartbeat := &UnitStateHeartbeat{
 					Name: name,
 				}
+				reports = append(reports, heartbeat)
 			}
+		}
+
+		beatchan <- &UnitStateHeartbeats{
+			States: reports,
 		}
 
 		close(beatchan)

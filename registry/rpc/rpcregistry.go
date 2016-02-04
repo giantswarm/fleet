@@ -194,6 +194,12 @@ func (r *RPCRegistry) SaveUnitState(unitName string, unitState *unit.UnitState, 
 	})
 }
 
+func (r *RPCRegistry) SaveUnitStates(unitStates []*pb.SaveUnitStateRequest) {
+	r.getClient().SaveUnitStates(r.ctx(), &pb.SaveUnitStatesRequest{
+		UnitStates: unitStates,
+	})
+}
+
 func (r *RPCRegistry) ScheduleUnit(unitName, machID string) error {
 	if DebugRPCRegistry {
 		defer debug.Exit_(debug.Enter_(unitName, machID))
