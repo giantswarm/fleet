@@ -7,42 +7,32 @@ import (
 	"time"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
-	"github.com/coreos/fleet/log"
 
 	"github.com/coreos/fleet/job"
+	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/unit"
 )
 
 type RegistryMux struct {
-	etcdRegistry      *EtcdRegistry
-	engineChangedChan chan machine.MachineState
-	localMachine      machine.Machine
-	rpcserver         *rpcserver
-	currentRegistry   Registry
-	rpcRegistry       *RPCRegistry
-	currentEngine     machine.MachineState
+	etcdRegistry    *EtcdRegistry
+	localMachine    machine.Machine
+	rpcserver       *rpcserver
+	currentRegistry Registry
+	rpcRegistry     *RPCRegistry
+	currentEngine   machine.MachineState
 
 	handlingEngineChange *sync.RWMutex
 }
 
 const dialRegistryReconnectTimeout = 200 * time.Millisecond
 
-func NewRegistryMux(etcdRegistry *EtcdRegistry, engineChanged chan machine.MachineState, localMachine machine.Machine) *RegistryMux {
+func NewRegistryMux(etcdRegistry *EtcdRegistry, localMachine machine.Machine) *RegistryMux {
 	return &RegistryMux{
 		etcdRegistry:         etcdRegistry,
-		engineChangedChan:    engineChanged,
 		localMachine:         localMachine,
 		handlingEngineChange: new(sync.RWMutex),
 	}
-}
-
-func (r *RegistryMux) StartMux() {
-	go func() {
-		for newEngine := range r.engineChangedChan {
-			r.EngineChanged(newEngine)
-		}
-	}()
 }
 
 func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, error) {
@@ -50,10 +40,10 @@ func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, erro
 		addr := fmt.Sprintf("%s:%d", r.currentEngine.PublicIP, rpcServerPort)
 		conn, err := net.Dial("tcp", addr)
 		if err == nil {
-			log.Infof("connected to engine on %s\n", r.currentEngine.PublicIP)
+			log.Infof("Connected to engine on %s\n", r.currentEngine.PublicIP)
 			return conn, nil
 		}
-		log.Errorf("unable to connect to new engine: %+v", err)
+		log.Errorf("Unable to connect to new engine: %+v", err)
 		time.Sleep(dialRegistryReconnectTimeout)
 	}
 }
@@ -61,38 +51,44 @@ func (r *RegistryMux) rpcDialer(_ string, timeout time.Duration) (net.Conn, erro
 func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 	r.handlingEngineChange.Lock()
 	defer r.handlingEngineChange.Unlock()
+
 	r.currentEngine = newEngine
-	log.Infof("engine changed, checking capabilities %+v", newEngine)
+	log.Infof("Engine changed, checking capabilities %+v", newEngine)
 	if r.localMachine.State().Capabilities.Has(machine.CapGRPC) {
 		if r.rpcserver != nil {
+			// If the engine changed, we need to stop the rpc server
 			r.rpcserver.Stop()
 			r.rpcserver = nil
 		}
 		if newEngine.ID == r.localMachine.State().ID {
-			log.Infof("starting rpc server\n")
 			// start rpc server
-			rpcserver, err := newRPCServer(r.etcdRegistry, newEngine.PublicIP)
+			log.Infof("Starting rpc server...\n")
+			var err error
+			r.rpcserver, err = NewRPCServer(r.etcdRegistry, newEngine.PublicIP)
 			if err != nil {
-				log.Errorf("unable to create rpc server %+v", err)
+				log.Fatalf("Unable to create rpc server %+v", err)
 			}
-			r.rpcserver = rpcserver
-			r.rpcserver.Start()
+
+			go func() {
+				errc := make(chan error, 1)
+				if errc <- r.rpcserver.Start(); <-errc != nil {
+					log.Fatalf("Failed to serve gRPC requests on listener: %v", <-errc)
+				}
+			}()
 		}
 		if newEngine.Capabilities.Has(machine.CapGRPC) {
-			log.Infof("new engine supports GRPC, connecting\n")
-			if r.rpcRegistry == nil {
-				r.rpcRegistry = NewRPCRegistry(r.rpcDialer)
-				r.rpcRegistry.Connect()
-			}
-			r.currentRegistry = r.rpcRegistry
+			log.Infof("New engine supports gRPC, connecting\n")
+			r.rpcRegistry = NewRPCRegistry(r.rpcDialer)
 			// connect to rpc registry
+			r.rpcRegistry.Connect()
+			r.currentRegistry = r.rpcRegistry
 		} else {
-			log.Infof("falling back to etcd registry\n")
+			log.Infof("Falling back to etcd registry\n")
 			r.currentRegistry = r.etcdRegistry
 		}
 
 	} else {
-		log.Infof("falling back to etcd registry\n")
+		log.Infof("Falling back to etcd registry\n")
 		r.currentRegistry = r.etcdRegistry
 	}
 }

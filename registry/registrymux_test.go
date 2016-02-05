@@ -18,7 +18,6 @@ func TestRegistryMuxUnitManagement(t *testing.T) {
 	}
 	defer os.RemoveAll(uDir)
 
-	engineChanged := make(chan machine.MachineState)
 	state := &machine.MachineState{
 		ID:       "id",
 		PublicIP: "127.0.0.1",
@@ -33,8 +32,7 @@ func TestRegistryMuxUnitManagement(t *testing.T) {
 	e := &testEtcdKeysAPI{}
 	etcdReg := &EtcdRegistry{kAPI: e, keyPrefix: "/fleet/"}
 
-	reg := NewRegistryMux(etcdReg, engineChanged, mach)
-	reg.StartMux()
+	reg := NewRegistryMux(etcdReg, mach)
 
 	contents := `
 [Unit]

@@ -119,7 +119,7 @@ func (r *inmemoryRegistry) Units() []pb.Unit {
 
 	units := make([]pb.Unit, 0, len(r.unitsCache))
 	unitNames := make([]string, 0, len(r.unitsCache))
-	for k, _ := range r.unitsCache {
+	for k := range r.unitsCache {
 		unitNames = append(unitNames, k)
 	}
 	sort.Strings(unitNames)
@@ -142,7 +142,7 @@ func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
 	mus := r.statesByMUSKey()
 
 	var sorted MUSKeys
-	for key, _ := range mus {
+	for key := range mus {
 		sorted = append(sorted, key)
 	}
 	sort.Sort(sorted)
