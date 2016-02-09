@@ -19,16 +19,15 @@ import (
 	"testing"
 )
 
-func assertGenerateUnitStateHeartbeats(t *testing.T, um UnitManager, gen *UnitStateGenerator, expect []UnitStateHeartbeat) {
+func assertGenerateUnitStateHeartbeats(t *testing.T, um UnitManager, gen *UnitStateGenerator, expect *UnitStateHeartbeats) {
 	beatchan, err := gen.Generate()
 	if err != nil {
 		t.Fatalf("Unexpected error from Generate(): %v", err)
 	}
 
-	got := []UnitStateHeartbeat{}
+	var got *UnitStateHeartbeats
 	for beat := range beatchan {
-		beat := beat
-		got = append(got, *beat)
+		got = beat
 	}
 
 	if !reflect.DeepEqual(got, expect) {
@@ -42,38 +41,48 @@ func TestUnitStateGeneratorSubscribeLifecycle(t *testing.T) {
 
 	gen := NewUnitStateGenerator(um)
 
+	empty := &UnitStateHeartbeats{
+		States: make([]*UnitStateHeartbeat, 0),
+	}
 	// not subscribed to anything yet, so no heartbeats
-	assertGenerateUnitStateHeartbeats(t, um, gen, []UnitStateHeartbeat{})
+	assertGenerateUnitStateHeartbeats(t, um, gen, empty)
 
 	gen.Subscribe("foo.service")
 
 	// subscribed to foo.service so we should get a heartbeat
-	expect := []UnitStateHeartbeat{
-		UnitStateHeartbeat{Name: "foo.service", State: &UnitState{"loaded", "active", "running", "", "", "foo.service"}},
+	expect := &UnitStateHeartbeats{
+		States: []*UnitStateHeartbeat{
+			{Name: "foo.service", State: &UnitState{"loaded", "active", "running", "", "", "foo.service"}},
+		},
 	}
 	assertGenerateUnitStateHeartbeats(t, um, gen, expect)
 
 	gen.Unsubscribe("foo.service")
 
 	// heartbeat for foo.service should have nil State since we have not called Generate since Unsubscribe
-	expect = []UnitStateHeartbeat{
-		UnitStateHeartbeat{Name: "foo.service", State: nil},
+	expect = &UnitStateHeartbeats{
+		States: []*UnitStateHeartbeat{
+			{Name: "foo.service", State: nil},
+		},
 	}
 	assertGenerateUnitStateHeartbeats(t, um, gen, expect)
 
 	// since the nil-State heartbeat for foo.service was sent for the last Generate, it can be forgotten
-	assertGenerateUnitStateHeartbeats(t, um, gen, []UnitStateHeartbeat{})
+	assertGenerateUnitStateHeartbeats(t, um, gen, empty)
 }
 
 func TestUnitStateGeneratorNoState(t *testing.T) {
 	um := NewFakeUnitManager()
 	gen := NewUnitStateGenerator(um)
 
+	empty := &UnitStateHeartbeats{
+		States: make([]*UnitStateHeartbeat, 0),
+	}
 	// not subscribed to anything yet, so no heartbeats
-	assertGenerateUnitStateHeartbeats(t, um, gen, []UnitStateHeartbeat{})
+	assertGenerateUnitStateHeartbeats(t, um, gen, empty)
 
 	gen.Subscribe("foo.service")
 
 	// subscribed to foo.service but no underlying state so no heartbeat
-	assertGenerateUnitStateHeartbeats(t, um, gen, []UnitStateHeartbeat{})
+	assertGenerateUnitStateHeartbeats(t, um, gen, empty)
 }
