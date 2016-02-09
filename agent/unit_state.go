@@ -86,7 +86,7 @@ func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeat, stop 
 						p.cacheMutex.Lock()
 						for name, state := range p.cache {
 							if state == nil {
-								log.Infof("Cleaning content of cache for unit %s", name)
+								log.Debugf("Cleaning content of unit hearbeat cache of %s", name)
 								delete(p.cache, name)
 							}
 						}
@@ -208,7 +208,7 @@ func newPublisher(reg registry.Registry, ttl time.Duration) publishFunc {
 			}
 		}
 		if len(states) > 0 {
-			log.Infof("Saving states in publisher: %d", len(states))
+			log.Debugf("Save %d unit states using unit publisher", len(states))
 			reg.SaveUnitStates(states)
 		}
 
