@@ -81,7 +81,7 @@ func main() {
 	cfgset.String("metadata", "", "List of key-value metadata to assign to the fleet machine")
 	cfgset.String("agent_ttl", agent.DefaultTTL, "TTL in seconds of fleet machine state in etcd")
 	cfgset.Int("token_limit", 100, "Maximum number of entries per page returned from API requests")
-	cfgset.Bool("enable_grpc", true, "When possible, uses grpc to communicate between engine and agent")
+	cfgset.Bool("enable_grpc", false, "When possible, uses grpc to communicate between engine and agent")
 	cfgset.Bool("disable_engine", false, "Disable the engine entirely, use with care")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
