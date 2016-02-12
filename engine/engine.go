@@ -45,6 +45,7 @@ type Engine struct {
 	trigger chan struct{}
 
 	updateEngineState func(newEngine machine.MachineState)
+	enableGRPC        bool
 }
 
 type CompleteRegistry interface {
@@ -52,7 +53,7 @@ type CompleteRegistry interface {
 	registry.ClusterRegistry
 }
 
-func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, updateEngineState func(newEngine machine.MachineState)) *Engine {
+func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, updateEngineState func(newEngine machine.MachineState), enableGRPC bool) *Engine {
 	rec := NewReconciler()
 	return &Engine{
 		rec:               rec,
@@ -63,22 +64,8 @@ func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, 
 		machine:           mach,
 		trigger:           make(chan struct{}),
 		updateEngineState: updateEngineState,
+		enableGRPC:        enableGRPC,
 	}
-}
-
-func (e *Engine) getMachineState(machID string) (*machine.MachineState, error) {
-	machines, err := e.registry.Machines()
-	if err != nil {
-		log.Errorf("Unable to get the list of machines from the registry: %v", err)
-		return nil, err
-	}
-
-	for _, s := range machines {
-		if s.ID == machID {
-			return &s, nil
-		}
-	}
-	return nil, nil
 }
 
 func (e *Engine) Run(ival time.Duration, stop chan bool) {
@@ -91,7 +78,7 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 		}
 
 		var previousEngine string
-		if e.lease != nil {
+		if e.enableGRPC && e.lease != nil {
 			previousEngine = e.lease.MachineID()
 		}
 
@@ -110,7 +97,7 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 		}
 
 		e.lease = l
-		if e.lease != nil && previousEngine != e.lease.MachineID() {
+		if e.enableGRPC && e.lease != nil && previousEngine != e.lease.MachineID() {
 			engineState, err := e.getMachineState(e.lease.MachineID())
 			if err != nil {
 				log.Errorf("Failed to get machine state for machine %s %v", e.lease.MachineID(), err)
@@ -308,4 +295,19 @@ func (e *Engine) attemptScheduleUnit(name, machID string) bool {
 
 	log.Infof("Scheduled Unit(%s) to Machine(%s)", name, machID)
 	return true
+}
+
+func (e *Engine) getMachineState(machID string) (*machine.MachineState, error) {
+	machines, err := e.registry.Machines()
+	if err != nil {
+		log.Errorf("Unable to get the list of machines from the registry: %v", err)
+		return nil, err
+	}
+
+	for _, s := range machines {
+		if s.ID == machID {
+			return &s, nil
+		}
+	}
+	return nil, nil
 }
