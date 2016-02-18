@@ -84,14 +84,33 @@ func (r *RPCRegistry) Connect() {
 
 func (r *RPCRegistry) IsRegistryReady() bool {
 	if r.registryConn != nil {
-		log.Infof("IsReadyConnectionState %s", r.registryConn.State().String())
-		return r.registryConn.State().String() == grpcConnectionStateReady
+		connState := r.registryConn.State().String()
+		log.Debugf("Registry connection state: %s", connState)
+		log.Debugf("Getting server status...")
+		status, err := r.Status()
+		if err != nil {
+			log.Errorf("unable to get the status of the registry service %v", err)
+			return false
+		}
+		log.Infof("Status of rpc service: %d, connection state: %s", status, connState)
+		return connState == grpcConnectionStateReady && status == pb.HealthCheckResponse_SERVING && err == nil
 	}
 	return false
 }
 
 func (r *RPCRegistry) UseEtcdRegistry() bool {
 	return false
+}
+
+func (r *RPCRegistry) Status() (pb.HealthCheckResponse_ServingStatus, error) {
+	req := &pb.HealthCheckRequest{
+		Service: registryServiceName,
+	}
+	resp, err := r.getClient().Status(r.ctx(), req)
+	if err != nil {
+		return -1, err
+	}
+	return resp.Status, err
 }
 
 func (r *RPCRegistry) ClearUnitHeartbeat(unitName string) {
