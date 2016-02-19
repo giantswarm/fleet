@@ -95,19 +95,19 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+			"Rev": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed"
 		},
 		{
 			"ImportPath": "golang.org/x/net/http2",
-			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+			"Rev": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed"
 		},
 		{
 			"ImportPath": "golang.org/x/net/internal/timeseries",
-			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+			"Rev": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed"
 		},
 		{
 			"ImportPath": "golang.org/x/net/trace",
-			"Rev": "195180cfebf7362bd243a52477697895128c8777"
+			"Rev": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed"
 		},
 		{
 			"ImportPath": "google.golang.org/api/googleapi",
@@ -115,7 +115,7 @@
 		},
 		{
 			"ImportPath": "google.golang.org/grpc",
-			"Rev": "a202995ce9a99c7d65875ba9f0cf04ff43169dd5"
+			"Rev": "178b68e2819d3ed711040301c12f3f97b6c270ce"
 		}
 	]
 }

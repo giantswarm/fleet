@@ -50,7 +50,11 @@ func (r *RPCRegistry) ctx() context.Context {
 
 func (r *RPCRegistry) getClient() pb.RegistryClient {
 	for {
-		state := r.registryConn.State().String()
+		st, err := r.registryConn.State()
+		if err != nil {
+			log.Fatalf("Unable to get the state of rpc connection: %v", err)
+		}
+		state := st.String()
 		if state == grpcConnectionStateReady {
 			break
 		} else if state == grpcConnectionStateConnecting {
@@ -84,7 +88,11 @@ func (r *RPCRegistry) Connect() {
 
 func (r *RPCRegistry) IsRegistryReady() bool {
 	if r.registryConn != nil {
-		connState := r.registryConn.State().String()
+		st, err := r.registryConn.State()
+		if err != nil {
+			log.Fatalf("Unable to get the state of rpc connection: %v", err)
+		}
+		connState := st.String()
 		log.Debugf("Registry connection state: %s", connState)
 		log.Debugf("Getting server status...")
 		status, err := r.Status()
