@@ -518,7 +518,6 @@ func (m *HealthCheckResponse) String() string            { return proto.CompactT
 func (*HealthCheckResponse) ProtoMessage()               {}
 func (*HealthCheckResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-
 func init() {
 	proto.RegisterType((*MachineProperties)(nil), "rpc.MachineProperties")
 	proto.RegisterType((*UpdatedState)(nil), "rpc.UpdatedState")
@@ -5838,7 +5837,7 @@ func skipFleet(data []byte) (n int, err error) {
 var (
 	ErrInvalidLengthFleet = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowFleet   = fmt.Errorf("proto: integer overflow")
-  fileDescriptor0 = []byte{
+	fileDescriptor0       = []byte{
 		// 209 bytes of a gzipped FileDescriptorProto
 		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0xe2, 0xc9, 0x48, 0x4d, 0xcc,
 		0x29, 0xc9, 0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x4e, 0x2f, 0x2a, 0x48, 0xd6, 0x83,
