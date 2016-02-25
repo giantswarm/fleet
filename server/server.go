@@ -104,6 +104,8 @@ func New(cfg config.Config) (*Server, error) {
 		reg        engine.CompleteRegistry
 		genericReg interface{}
 	)
+	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+
 	if !cfg.EnableGRPC {
 		genericReg = registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
 		if obj, ok := genericReg.(engine.CompleteRegistry); ok {
@@ -111,7 +113,7 @@ func New(cfg config.Config) (*Server, error) {
 		}
 	} else {
 		etcdReg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
-		genericReg = rpc.NewRegistryMux(etcdReg, mach)
+		genericReg = rpc.NewRegistryMux(etcdReg, mach, lManager)
 		if obj, ok := genericReg.(engine.CompleteRegistry); ok {
 			reg = obj
 		}
@@ -132,10 +134,13 @@ func New(cfg config.Config) (*Server, error) {
 
 	var e *engine.Engine
 	if !cfg.EnableGRPC {
-		e = engine.New(reg, lManager, rStream, mach, nil, cfg.EnableGRPC)
+		e = engine.New(reg, lManager, rStream, mach, nil)
 	} else {
 		regMux := genericReg.(*rpc.RegistryMux)
-		e = engine.New(reg, lManager, rStream, mach, regMux.EngineChanged, cfg.EnableGRPC)
+		e = engine.New(reg, lManager, rStream, mach, regMux.EngineChanged)
+		if cfg.DisableEngine {
+			regMux.ConnectRPCRegistry()
+		}
 	}
 
 	listeners, err := activation.Listeners(false)

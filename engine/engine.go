@@ -45,7 +45,6 @@ type Engine struct {
 	trigger chan struct{}
 
 	updateEngineState func(newEngine machine.MachineState)
-	enableGRPC        bool
 }
 
 type CompleteRegistry interface {
@@ -53,7 +52,7 @@ type CompleteRegistry interface {
 	registry.ClusterRegistry
 }
 
-func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, updateEngineState func(newEngine machine.MachineState), enableGRPC bool) *Engine {
+func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, updateEngineState func(newEngine machine.MachineState)) *Engine {
 	rec := NewReconciler()
 	return &Engine{
 		rec:               rec,
@@ -64,7 +63,6 @@ func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, 
 		machine:           mach,
 		trigger:           make(chan struct{}),
 		updateEngineState: updateEngineState,
-		enableGRPC:        enableGRPC,
 	}
 }
 
@@ -92,7 +90,7 @@ func (e *Engine) Run(ival time.Duration, stop <-chan struct{}) {
 			return
 		}
 
-		if e.enableGRPC {
+		if e.machine.State().Capabilities.Has(machine.CapGRPC) {
 			// rpcLeadership gets the lease (leader), and apply changes to the engine state if need it.
 			e.lease = e.rpcLeadership(leaseTTL, machID)
 		} else {
