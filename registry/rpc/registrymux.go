@@ -59,8 +59,8 @@ func (r *RegistryMux) ConnectRPCRegistry() {
 
 func (r *RegistryMux) rpcDialerNoEngine(_ string, timeout time.Duration) (net.Conn, error) {
 	ticker := time.Tick(dialRegistryReconnectTimeout)
-	// Timeout re-defined to call etcd every 3secs to get the leader
-	timeout = 3 * time.Second
+	// Timeout re-defined to call etcd every 5secs to get the leader
+	timeout = 5 * time.Second
 	check := time.After(timeout)
 
 	for {
@@ -70,19 +70,27 @@ func (r *RegistryMux) rpcDialerNoEngine(_ string, timeout time.Duration) (net.Co
 			// Get the new engine leader of the cluster out of etcd
 			lease, err := r.leaseManager.GetLease(engineLeaderKeyPath)
 			// Key found
-			if err == nil {
+			if err == nil && lease != nil {
 				var err error
-				machines, err := r.getRegistry().Machines()
+				machines, err := r.etcdRegistry.Machines()
 				if err != nil {
 					log.Errorf("Unable to get the machines of the cluster %v\n", err)
 					return nil, errors.New("Unable to get the machines of the cluster")
 				}
 				for _, s := range machines {
+					// Update the currentEngine with the new one... otherwise wait until
+					// there is one
 					if s.ID == lease.MachineID() {
 						r.currentEngine = s
-						log.Infof("Found a new engine to connect %s\n", r.currentEngine.PublicIP)
+						log.Infof("Found a new engine to connect to: %s\n", r.currentEngine.PublicIP)
+						// Restore initial check configuration
+						timeout = 5 * time.Second
+						check = time.After(timeout)
 					}
 				}
+			} else {
+				timeout = 2 * time.Second
+				log.Errorf("Unable to get the leader engine, retrying in %v...", timeout)
 				check = time.After(timeout)
 			}
 		case <-ticker:
