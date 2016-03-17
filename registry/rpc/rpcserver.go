@@ -38,6 +38,8 @@ type rpcserver struct {
 
 	// serverStatus stores the serving status of this service.
 	serverStatus pb.HealthCheckResponse_ServingStatus
+
+	etcdStatusUpdate bool
 }
 
 func NewRPCServer(reg registry.Registry, addr string) (*rpcserver, error) {
@@ -70,6 +72,14 @@ func NewRPCServer(reg registry.Registry, addr string) (*rpcserver, error) {
 
 	s.SetServingStatus(pb.HealthCheckResponse_NOT_SERVING)
 
+	machineStates, _ := s.etcdRegistry.Machines()
+	s.etcdStatusUpdate = false
+	for _, state := range machineStates {
+		if !state.Capabilities.Has("GRPC") {
+			log.Info("Enabled unit state storage into etcd!")
+			s.etcdStatusUpdate = true
+		}
+	}
 	return s, nil
 }
 
@@ -108,7 +118,11 @@ func (s *rpcserver) GetScheduledUnits(ctx context.Context, unitFilter *pb.UnitFi
 	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_())
 	}
+
 	units, err := s.localRegistry.Schedule()
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.ScheduledUnits{Units: units}, err
 }
@@ -142,8 +156,26 @@ func (s *rpcserver) GetUnits(ctx context.Context, filter *pb.UnitFilter) (*pb.Un
 	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_())
 	}
+	units := make([]pb.Unit, 0)
+	units = append(units, s.localRegistry.Units()...)
 
-	units := s.localRegistry.Units()
+	if s.etcdStatusUpdate {
+		log.Info("Merging etcd units in GetUnits()")
+		etcdUnits, _ := s.etcdRegistry.Units()
+		log.Infof("rpcserver etcdUnits %v", etcdUnits)
+
+		unitNames := make(map[string]struct{}, len(units))
+		for _, unit := range units {
+			unitNames[unit.Name] = struct{}{}
+		}
+		for _, unit := range etcdUnits {
+			if _, ok := unitNames[unit.Name]; !ok {
+				units = append(units, unit.ToPB())
+			}
+		}
+		log.Infof("rpcserver etcdUnits allUnits %v", units)
+	}
+
 	return &pb.Units{Units: units}, nil
 }
 
@@ -151,8 +183,26 @@ func (s *rpcserver) GetUnitStates(ctx context.Context, filter *pb.UnitStateFilte
 	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_())
 	}
+	states := make([]*pb.UnitState, 0)
+	states = append(states, s.localRegistry.UnitStates()...)
 
-	states := s.localRegistry.UnitStates()
+	if s.etcdStatusUpdate {
+		log.Info("Merging etcd unit states in GetUnitStates()")
+		etcdUnitStates, _ := s.etcdRegistry.UnitStates()
+		log.Infof("rpcserver etcdUnitStates %v", etcdUnitStates)
+
+		unitStateNames := make(map[string]string, len(states))
+		for _, state := range states {
+			unitStateNames[state.Name] = state.MachineID
+		}
+		for _, state := range etcdUnitStates {
+			machId, ok := unitStateNames[state.UnitName]
+			if !ok || (ok && machId != state.MachineID) {
+				states = append(states, state.ToPB())
+			}
+		}
+		log.Infof("rpcserver GetUnitStates allUnitStatess %v", states)
+	}
 
 	return &pb.UnitStates{states}, nil
 }
@@ -204,6 +254,11 @@ func (s *rpcserver) RemoveUnitState(ctx context.Context, name *pb.UnitName) (*pb
 		defer debug.Exit_(debug.Enter_(name.Name))
 	}
 
+	if s.etcdStatusUpdate {
+		log.Info("Merging etcd unit states in RemoveUnitState()")
+		s.etcdRegistry.RemoveUnitState(name.Name)
+	}
+
 	s.localRegistry.RemoveUnitState(name.Name)
 	return &pb.GenericReply{}, nil
 }
@@ -211,6 +266,12 @@ func (s *rpcserver) RemoveUnitState(ctx context.Context, name *pb.UnitName) (*pb
 func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequest) (*pb.GenericReply, error) {
 	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(req))
+	}
+
+	if s.etcdStatusUpdate {
+		log.Info("Merging etcd unit states in SaveUnitState()")
+		unitState := rpcUnitStateToExtUnitState(req.State)
+		s.etcdRegistry.SaveUnitState(req.Name, unitState, time.Duration(req.TTL)*time.Second)
 	}
 
 	s.localRegistry.SaveUnitState(req.Name, req.State, time.Duration(req.TTL)*time.Second)
