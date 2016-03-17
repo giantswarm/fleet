@@ -39,7 +39,7 @@ type rpcserver struct {
 	// serverStatus stores the serving status of this service.
 	serverStatus pb.HealthCheckResponse_ServingStatus
 
-	etcdStatusUpdate bool
+	hasNonGRPCAgents bool
 }
 
 func NewRPCServer(reg registry.Registry, addr string) (*rpcserver, error) {
@@ -73,11 +73,12 @@ func NewRPCServer(reg registry.Registry, addr string) (*rpcserver, error) {
 	s.SetServingStatus(pb.HealthCheckResponse_NOT_SERVING)
 
 	machineStates, _ := s.etcdRegistry.Machines()
-	s.etcdStatusUpdate = false
+	s.hasNonGRPCAgents = false
 	for _, state := range machineStates {
 		if !state.Capabilities.Has("GRPC") {
 			log.Info("Enabled unit state storage into etcd!")
-			s.etcdStatusUpdate = true
+			s.hasNonGRPCAgents = true
+			break
 		}
 	}
 	return s, nil
@@ -159,7 +160,7 @@ func (s *rpcserver) GetUnits(ctx context.Context, filter *pb.UnitFilter) (*pb.Un
 	units := make([]pb.Unit, 0)
 	units = append(units, s.localRegistry.Units()...)
 
-	if s.etcdStatusUpdate {
+	if s.hasNonGRPCAgents {
 		log.Info("Merging etcd units in GetUnits()")
 		etcdUnits, _ := s.etcdRegistry.Units()
 		log.Infof("rpcserver etcdUnits %v", etcdUnits)
@@ -186,7 +187,7 @@ func (s *rpcserver) GetUnitStates(ctx context.Context, filter *pb.UnitStateFilte
 	states := make([]*pb.UnitState, 0)
 	states = append(states, s.localRegistry.UnitStates()...)
 
-	if s.etcdStatusUpdate {
+	if s.hasNonGRPCAgents {
 		log.Info("Merging etcd unit states in GetUnitStates()")
 		etcdUnitStates, _ := s.etcdRegistry.UnitStates()
 		log.Infof("rpcserver etcdUnitStates %v", etcdUnitStates)
@@ -254,7 +255,7 @@ func (s *rpcserver) RemoveUnitState(ctx context.Context, name *pb.UnitName) (*pb
 		defer debug.Exit_(debug.Enter_(name.Name))
 	}
 
-	if s.etcdStatusUpdate {
+	if s.hasNonGRPCAgents {
 		log.Info("Merging etcd unit states in RemoveUnitState()")
 		s.etcdRegistry.RemoveUnitState(name.Name)
 	}
@@ -268,7 +269,7 @@ func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequ
 		defer debug.Exit_(debug.Enter_(req))
 	}
 
-	if s.etcdStatusUpdate {
+	if s.hasNonGRPCAgents {
 		log.Info("Merging etcd unit states in SaveUnitState()")
 		unitState := rpcUnitStateToExtUnitState(req.State)
 		s.etcdRegistry.SaveUnitState(req.Name, unitState, time.Duration(req.TTL)*time.Second)
