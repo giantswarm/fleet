@@ -24,6 +24,29 @@ import (
 	"github.com/coreos/fleet/registry"
 )
 
+// IsGrpcLeader checks if the current leader has gRPC capabilities enabled
+func (e *Engine) IsGrpcLeader() bool {
+	leader, err := e.lManager.GetLease(engineLeaseName)
+	if err != nil {
+		log.Errorf("Unable to determine current lease: %v", err)
+		return false
+	}
+
+	leaderState, err := e.getMachineState(leader.MachineID())
+	if err != nil {
+		log.Errorf("Unable to determine current lease: %v", err)
+		return false
+	}
+
+	if leaderState.Capabilities != nil && leaderState.Capabilities.Has(machine.CapGRPC) {
+		return true
+	}
+
+	log.Info("Engine leader has no gRPC capabilities enabled!")
+
+	return false
+}
+
 func (e *Engine) rpcLeadership(leaseTTL time.Duration, machID string) lease.Lease {
 	var previousEngine string
 	if e.lease != nil {
