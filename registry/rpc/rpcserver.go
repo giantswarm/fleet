@@ -13,6 +13,7 @@ import (
 	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc/codes"
 	"github.com/coreos/fleet/debug"
 	"github.com/coreos/fleet/log"
+	"github.com/coreos/fleet/machine"
 	pb "github.com/coreos/fleet/protobuf"
 	"github.com/coreos/fleet/registry"
 )
@@ -78,8 +79,8 @@ func NewRPCServer(reg registry.Registry, addr string) (*rpcserver, error) {
 	}
 	s.hasNonGRPCAgents = false
 	for _, state := range machineStates {
-		if !state.Capabilities.Has("GRPC") {
-			log.Info("Enabled unit state storage into etcd!")
+		if !state.Capabilities.Has(machine.CapGRPC) {
+			log.Info("Fleet cluster has non gRPC agents!. Enabled unit state storage into etcd!")
 			s.hasNonGRPCAgents = true
 			break
 		}
@@ -124,9 +125,6 @@ func (s *rpcserver) GetScheduledUnits(ctx context.Context, unitFilter *pb.UnitFi
 	}
 
 	units, err := s.localRegistry.Schedule()
-	if err != nil {
-		return nil, err
-	}
 
 	return &pb.ScheduledUnits{Units: units}, err
 }
