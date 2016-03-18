@@ -72,7 +72,10 @@ func NewRPCServer(reg registry.Registry, addr string) (*rpcserver, error) {
 
 	s.SetServingStatus(pb.HealthCheckResponse_NOT_SERVING)
 
-	machineStates, _ := s.etcdRegistry.Machines()
+	machineStates, err := s.etcdRegistry.Machines()
+	if err != nil {
+		return nil, err
+	}
 	s.hasNonGRPCAgents = false
 	for _, state := range machineStates {
 		if !state.Capabilities.Has("GRPC") {
@@ -162,7 +165,10 @@ func (s *rpcserver) GetUnits(ctx context.Context, filter *pb.UnitFilter) (*pb.Un
 
 	if s.hasNonGRPCAgents {
 		log.Debug("Merging etcd with inmemory units in GetUnits()")
-		etcdUnits, _ := s.etcdRegistry.Units()
+		etcdUnits, err := s.etcdRegistry.Units()
+		if err != nil {
+			return nil, err
+		}
 
 		unitNames := make(map[string]struct{}, len(units))
 		for _, unit := range units {
@@ -187,7 +193,10 @@ func (s *rpcserver) GetUnitStates(ctx context.Context, filter *pb.UnitStateFilte
 
 	if s.hasNonGRPCAgents {
 		log.Debug("Merging etcd with inmemory unit states in GetUnitStates()")
-		etcdUnitStates, _ := s.etcdRegistry.UnitStates()
+		etcdUnitStates, err := s.etcdRegistry.UnitStates()
+		if err != nil {
+			return nil, err
+		}
 
 		unitStateNames := make(map[string]string, len(states))
 		for _, state := range states {
