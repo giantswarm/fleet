@@ -161,9 +161,8 @@ func (s *rpcserver) GetUnits(ctx context.Context, filter *pb.UnitFilter) (*pb.Un
 	units = append(units, s.localRegistry.Units()...)
 
 	if s.hasNonGRPCAgents {
-		log.Info("Merging etcd units in GetUnits()")
+		log.Debug("Merging etcd with inmemory units in GetUnits()")
 		etcdUnits, _ := s.etcdRegistry.Units()
-		log.Infof("rpcserver etcdUnits %v", etcdUnits)
 
 		unitNames := make(map[string]struct{}, len(units))
 		for _, unit := range units {
@@ -174,7 +173,6 @@ func (s *rpcserver) GetUnits(ctx context.Context, filter *pb.UnitFilter) (*pb.Un
 				units = append(units, unit.ToPB())
 			}
 		}
-		log.Infof("rpcserver etcdUnits allUnits %v", units)
 	}
 
 	return &pb.Units{Units: units}, nil
@@ -188,9 +186,8 @@ func (s *rpcserver) GetUnitStates(ctx context.Context, filter *pb.UnitStateFilte
 	states = append(states, s.localRegistry.UnitStates()...)
 
 	if s.hasNonGRPCAgents {
-		log.Info("Merging etcd unit states in GetUnitStates()")
+		log.Debug("Merging etcd with inmemory unit states in GetUnitStates()")
 		etcdUnitStates, _ := s.etcdRegistry.UnitStates()
-		log.Infof("rpcserver etcdUnitStates %v", etcdUnitStates)
 
 		unitStateNames := make(map[string]string, len(states))
 		for _, state := range states {
@@ -202,7 +199,6 @@ func (s *rpcserver) GetUnitStates(ctx context.Context, filter *pb.UnitStateFilte
 				states = append(states, state.ToPB())
 			}
 		}
-		log.Infof("rpcserver GetUnitStates allUnitStatess %v", states)
 	}
 
 	return &pb.UnitStates{states}, nil
@@ -256,7 +252,6 @@ func (s *rpcserver) RemoveUnitState(ctx context.Context, name *pb.UnitName) (*pb
 	}
 
 	if s.hasNonGRPCAgents {
-		log.Info("Merging etcd unit states in RemoveUnitState()")
 		s.etcdRegistry.RemoveUnitState(name.Name)
 	}
 
@@ -270,7 +265,6 @@ func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequ
 	}
 
 	if s.hasNonGRPCAgents {
-		log.Info("Merging etcd unit states in SaveUnitState()")
 		unitState := rpcUnitStateToExtUnitState(req.State)
 		s.etcdRegistry.SaveUnitState(req.Name, unitState, time.Duration(req.TTL)*time.Second)
 	}
