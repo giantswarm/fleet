@@ -138,8 +138,8 @@ func New(cfg config.Config) (*Server, error) {
 	} else {
 		regMux := genericReg.(*rpc.RegistryMux)
 		e = engine.New(reg, lManager, rStream, mach, regMux.EngineChanged)
-		if cfg.DisableEngine && e.IsGrpcLeader() {
-			regMux.ConnectRPCRegistry()
+		if cfg.DisableEngine {
+			go regMux.ConnectToRegistry(e)
 		}
 	}
 
