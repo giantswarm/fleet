@@ -76,11 +76,12 @@ func main() {
 	cfgset.String("etcd_cafile", "", "SSL Certificate Authority file used to secure etcd communication")
 	cfgset.String("etcd_key_prefix", registry.DefaultKeyPrefix, "Keyspace for fleet data in etcd")
 	cfgset.Float64("etcd_request_timeout", 1.0, "Amount of time in seconds to allow a single etcd request before considering it failed.")
-	cfgset.Float64("engine_reconcile_interval", 2.0, "Interval at which the engine should reconcile the cluster schedule in etcd.")
+	cfgset.Float64("engine_reconcile_interval", 5.0, "Interval at which the engine should reconcile the cluster schedule in etcd.")
 	cfgset.String("public_ip", "", "IP address that fleet machine should publish")
 	cfgset.String("metadata", "", "List of key-value metadata to assign to the fleet machine")
 	cfgset.String("agent_ttl", agent.DefaultTTL, "TTL in seconds of fleet machine state in etcd")
 	cfgset.Int("token_limit", 100, "Maximum number of entries per page returned from API requests")
+	cfgset.Bool("enable_grpc", true, "When possible, uses grpc to communicate between engine and agent")
 	cfgset.Bool("disable_engine", false, "Disable the engine entirely, use with care")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
@@ -195,6 +196,7 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		RawMetadata:             (*flagset.Lookup("metadata")).Value.(flag.Getter).Get().(string),
 		AgentTTL:                (*flagset.Lookup("agent_ttl")).Value.(flag.Getter).Get().(string),
 		DisableEngine:           (*flagset.Lookup("disable_engine")).Value.(flag.Getter).Get().(bool),
+		EnableGRPC:              (*flagset.Lookup("enable_grpc")).Value.(flag.Getter).Get().(bool),
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		TokenLimit:              (*flagset.Lookup("token_limit")).Value.(flag.Getter).Get().(int),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),

@@ -33,6 +33,7 @@ import (
 	"github.com/coreos/fleet/pkg"
 	"github.com/coreos/fleet/pkg/lease"
 	"github.com/coreos/fleet/registry"
+	"github.com/coreos/fleet/registry/rpc"
 	"github.com/coreos/fleet/systemd"
 	"github.com/coreos/fleet/unit"
 	"github.com/coreos/fleet/version"
@@ -93,7 +94,25 @@ func New(cfg config.Config) (*Server, error) {
 
 	etcdRequestTimeout := time.Duration(cfg.EtcdRequestTimeout*1000) * time.Millisecond
 	kAPI := etcd.NewKeysAPI(eClient)
-	reg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+
+	var (
+		reg        engine.CompleteRegistry
+		genericReg interface{}
+	)
+	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+
+	if !cfg.EnableGRPC {
+		genericReg = registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+		if obj, ok := genericReg.(engine.CompleteRegistry); ok {
+			reg = obj
+		}
+	} else {
+		etcdReg := registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+		genericReg = rpc.NewRegistryMux(etcdReg, mach, lManager)
+		if obj, ok := genericReg.(engine.CompleteRegistry); ok {
+			reg = obj
+		}
+	}
 
 	pub := agent.NewUnitStatePublisher(reg, mach, agentTTL)
 	gen := unit.NewUnitStateGenerator(mgr)
@@ -101,11 +120,19 @@ func New(cfg config.Config) (*Server, error) {
 	a := agent.New(mgr, gen, reg, mach, agentTTL)
 
 	rStream := registry.NewEtcdEventStream(kAPI, cfg.EtcdKeyPrefix)
-	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
 
 	ar := agent.NewReconciler(reg, rStream)
 
-	e := engine.New(reg, lManager, rStream, mach)
+	var e *engine.Engine
+	if !cfg.EnableGRPC {
+		e = engine.New(reg, lManager, rStream, mach, nil)
+	} else {
+		regMux := genericReg.(*rpc.RegistryMux)
+		e = engine.New(reg, lManager, rStream, mach, regMux.EngineChanged)
+		if cfg.DisableEngine {
+			go regMux.ConnectToRegistry(e)
+		}
+	}
 
 	listeners, err := activation.Listeners(false)
 	if err != nil {
@@ -140,9 +167,10 @@ func New(cfg config.Config) (*Server, error) {
 
 func newMachineFromConfig(cfg config.Config, mgr unit.UnitManager) (*machine.CoreOSMachine, error) {
 	state := machine.MachineState{
-		PublicIP: cfg.PublicIP,
-		Metadata: cfg.Metadata(),
-		Version:  version.Version,
+		PublicIP:     cfg.PublicIP,
+		Metadata:     cfg.Metadata(),
+		Capabilities: cfg.Capabilities(),
+		Version:      version.Version,
 	}
 
 	mach := machine.NewCoreOSMachine(state, mgr)

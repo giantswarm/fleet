@@ -27,7 +27,7 @@ var (
 		Usage:   "[--no-block|--block-attempts=N] UNIT...",
 		Description: `Load one or many units in the cluster into systemd, but do not start.
 
-Select units to load by glob matching for units in the current working directory 
+Select units to load by glob matching for units in the current working directory
 or matching the names of previously submitted units.
 
 For units which are not global, load operations are performed synchronously,
