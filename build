@@ -5,7 +5,8 @@ cd $CDIR
 
 ORG_PATH="github.com/coreos"
 REPO_PATH="${ORG_PATH}/fleet"
-VERSION=$(git describe --dirty)
+VERSION=v0.11.5-gs-grpc
+GLDFLAGS="-X $(go_linker_dashX github.com/coreos/fleet/version.Version ${VERSION})"
 
 if [ ! $(command -v go 2>/dev/null) ]; then
   echo "build: failed to locate Go binaries."
