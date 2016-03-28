@@ -241,7 +241,7 @@ func (r *inmemoryRegistry) SaveUnitStates(unitStates []*pb.SaveUnitStateRequest)
 		defer debug.Exit_(debug.Enter_(unitStates))
 	}
 	for _, us := range unitStates {
-		r.SaveUnitState(us.Name, us.State, time.Duration(us.TTL) * time.Second)
+		r.SaveUnitState(us.Name, us.State, time.Duration(us.TTL)*time.Second)
 	}
 }
 

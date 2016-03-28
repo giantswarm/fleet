@@ -23,8 +23,8 @@ import (
 
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
-	"github.com/coreos/fleet/unit"
 	pb "github.com/coreos/fleet/protobuf"
+	"github.com/coreos/fleet/unit"
 )
 
 const (
@@ -63,7 +63,7 @@ func (r *EtcdRegistry) UnitStates() (states []*unit.UnitState, err error) {
 	}
 
 	var sorted MUSKeys
-	for key, _ := range mus {
+	for key := range mus {
 		sorted = append(sorted, key)
 	}
 	sort.Sort(sorted)
@@ -176,15 +176,15 @@ func (r *EtcdRegistry) SaveUnitStates(unitStates []*pb.SaveUnitStateRequest) {
 		if us.State.Name != "" {
 			name = us.State.Name
 		}
-		state := &unit.UnitState {
-			LoadState: us.State.LoadState,
+		state := &unit.UnitState{
+			LoadState:   us.State.LoadState,
 			ActiveState: us.State.ActiveState,
-			SubState: us.State.SubState,
-			MachineID: us.State.MachineID,
-			UnitHash: us.State.Hash,
-			UnitName: name,
+			SubState:    us.State.SubState,
+			MachineID:   us.State.MachineID,
+			UnitHash:    us.State.Hash,
+			UnitName:    name,
 		}
-		r.SaveUnitState(name, state, time.Duration(us.TTL) * time.Second)
+		r.SaveUnitState(name, state, time.Duration(us.TTL)*time.Second)
 	}
 }
 
