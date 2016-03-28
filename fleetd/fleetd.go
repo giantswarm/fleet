@@ -17,12 +17,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	json "github.com/pquerna/ffjson/ffjson"
 
@@ -129,7 +126,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	writeState := func(out io.Writer) {
+	writeState := func() {
 		log.Infof("Dumping server state")
 
 		encoded, err := json.Marshal(srv)
@@ -138,36 +135,21 @@ func main() {
 			return
 		}
 
-		if _, err := out.Write(encoded); err != nil {
+		if _, err := os.Stdout.Write(encoded); err != nil {
 			log.Errorf("Failed to dump server state: %v", err)
 			return
 		}
 
-		out.Write([]byte("\n"))
+		os.Stdout.Write([]byte("\n"))
 
 		log.Debugf("Finished dumping server state")
-	}
-
-	writeStateFile := func() {
-		tempFile, err := ioutil.TempFile("", fmt.Sprintf("fleetd-state-%d-%d.json", os.Getpid(), time.Now().Unix()))
-		if err != nil {
-			log.Errorf("Failed to create temporary file")
-			return
-		}
-		defer tempFile.Close()
-		writeState(tempFile)
-	}
-
-	writeStateStdout := func() {
-		writeState(os.Stdout)
 	}
 
 	signals := map[os.Signal]func(){
 		syscall.SIGHUP:  reconfigure,
 		syscall.SIGTERM: shutdown,
 		syscall.SIGINT:  shutdown,
-		syscall.SIGUSR1: writeStateStdout,
-		syscall.SIGUSR2: writeStateFile,
+		syscall.SIGUSR1: writeState,
 	}
 
 	listenForSignals(signals)

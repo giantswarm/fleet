@@ -29,9 +29,7 @@ import (
 	"github.com/coreos/fleet/unit"
 )
 
-const numPublishers = 10
-
-const DefaultUnitStateTTL = "300s"
+const numPublishers = 5
 
 func NewUnitStatePublisher(reg registry.Registry, mach machine.Machine, ttl time.Duration) *UnitStatePublisher {
 	return &UnitStatePublisher{

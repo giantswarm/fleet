@@ -25,7 +25,6 @@ type UnitManager interface {
 
 	TriggerStart(string)
 	TriggerStop(string)
-	Stop(string)
 
 	Units() ([]string, error)
 	GetUnitStates(pkg.Set) (map[string]*UnitState, error)
