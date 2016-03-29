@@ -178,8 +178,8 @@ func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 					}
 				}()
 			}
-
 		}
+
 		if newEngine.Capabilities.Has(machine.CapGRPC) {
 			if r.rpcRegistry != nil && r.rpcRegistry.IsRegistryReady() {
 				log.Infof("Reusing gRPC engine, connection is READY\n")
@@ -188,7 +188,15 @@ func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 				log.Infof("New engine supports gRPC, connecting\n")
 				r.rpcRegistry = NewRPCRegistry(r.rpcDialer)
 				// connect to rpc registry
-				r.rpcRegistry.Connect()
+				if err := r.rpcRegistry.Connect(); err != nil {
+					log.Infof("Unable to connect to gRPC engine. Trying to reconnect...")
+					err = r.rpcRegistry.Reconnect()
+					if err != nil {
+						log.Infof("Falling back to etcd registry\n")
+						r.currentRegistry = r.etcdRegistry
+					}
+				}
+
 				r.currentRegistry = r.rpcRegistry
 			}
 		} else {
