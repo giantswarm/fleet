@@ -66,21 +66,6 @@ func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, 
 	}
 }
 
-func (e *Engine) getMachineState(machID string) (*machine.MachineState, error) {
-	machines, err := e.registry.Machines()
-	if err != nil {
-		log.Errorf("Unable to get the list of machines from the registry: %v", err)
-		return nil, err
-	}
-
-	for _, s := range machines {
-		if s.ID == machID {
-			return &s, nil
-		}
-	}
-	return nil, nil
-}
-
 func (e *Engine) Run(ival time.Duration, stop <-chan struct{}) {
 	leaseTTL := ival * 5
 	machID := e.machine.State().ID

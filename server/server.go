@@ -128,7 +128,6 @@ func New(cfg config.Config) (*Server, error) {
 	if !cfg.DisableWatches {
 		rStream = registry.NewEtcdEventStream(kAPI, cfg.EtcdKeyPrefix)
 	}
-	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
 
 	ar := agent.NewReconciler(reg, rStream)
 
