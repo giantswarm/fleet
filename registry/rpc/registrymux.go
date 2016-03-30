@@ -50,26 +50,31 @@ func NewRegistryMux(etcdRegistry *registry.EtcdRegistry, localMachine machine.Ma
 func (r *RegistryMux) ConnectToRegistry(e *engine.Engine) {
 	for {
 		// We have to check if the leader has changed to etcd otherwise keep grpc connection
-		if e.IsGrpcLeader() {
-			if r.rpcRegistry != nil && r.rpcRegistry.IsRegistryReady() {
-				log.Infof("Reusing gRPC engine, connection is READY\n")
-				r.currentRegistry = r.rpcRegistry
+		isGrpc, err := e.IsGrpcLeader()
+		// If there is not error then we are able to get the leader state and continue
+		// otherwise we have to wait
+		if err == nil {
+			if isGrpc {
+				if r.rpcRegistry != nil && r.rpcRegistry.IsRegistryReady() {
+					log.Infof("Reusing gRPC engine, connection is READY\n")
+					r.currentRegistry = r.rpcRegistry
+				} else {
+					if r.rpcRegistry != nil {
+						r.rpcRegistry.Close()
+					}
+					log.Infof("New engine supports gRPC, connecting\n")
+					r.rpcRegistry = NewRPCRegistry(r.rpcDialerNoEngine)
+					// connect to rpc registry
+					r.rpcRegistry.Connect()
+					r.currentRegistry = r.rpcRegistry
+				}
 			} else {
 				if r.rpcRegistry != nil {
 					r.rpcRegistry.Close()
 				}
-				log.Infof("New engine supports gRPC, connecting\n")
-				r.rpcRegistry = NewRPCRegistry(r.rpcDialerNoEngine)
-				// connect to rpc registry
-				r.rpcRegistry.Connect()
-				r.currentRegistry = r.rpcRegistry
+				// new leader is etcd-based
+				r.currentRegistry = r.etcdRegistry
 			}
-		} else {
-			if r.rpcRegistry != nil {
-				r.rpcRegistry.Close()
-			}
-			// new leader is etcd-based
-			r.currentRegistry = r.etcdRegistry
 		}
 		time.Sleep(5 * time.Second)
 	}
