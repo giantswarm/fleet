@@ -34,12 +34,31 @@ type RPCRegistry struct {
 	mu             *sync.Mutex
 	registryClient pb.RegistryClient
 	registryConn   *grpc.ClientConn
+
+	cachesMu       *sync.Mutex
+	heartbeatCache map[string]heartbeatCacheLine
+	unitStateCache map[string]unitStateCacheLine
+}
+
+type heartbeatCacheLine struct {
+	unitName string
+	machID   string
+	deadline time.Time
+}
+
+type unitStateCacheLine struct {
+	unitName  string
+	unitState *unit.UnitState
+	deadline  time.Time
 }
 
 func NewRPCRegistry(dialer func(string, time.Duration) (net.Conn, error)) *RPCRegistry {
 	return &RPCRegistry{
-		mu:     new(sync.Mutex),
-		dialer: dialer,
+		mu:             new(sync.Mutex),
+		dialer:         dialer,
+		cachesMu:       new(sync.Mutex),
+		heartbeatCache: map[string]heartbeatCacheLine{},
+		unitStateCache: map[string]unitStateCacheLine{},
 	}
 }
 
@@ -84,6 +103,31 @@ func (r *RPCRegistry) Connect() {
 	r.registryConn = connection
 	r.registryClient = pb.NewRegistryClient(r.registryConn)
 	log.Info("Connected succesfully to fleet-engine via grpc!")
+	r.pushKnownStates()
+}
+
+func (r *RPCRegistry) pushKnownStates() {
+	r.cachesMu.Lock()
+
+	for unitName, heartbeat := range r.heartbeatCache {
+		if heartbeat.deadline.After(time.Now()) {
+			r.nocacheUnitHeartbeat(heartbeat.unitName, heartbeat.machID, heartbeat.deadline.Sub(time.Now()))
+		} else {
+			delete(r.heartbeatCache, unitName)
+		}
+	}
+
+	for unitName, unitState := range r.unitStateCache {
+		if unitState.deadline.After(time.Now()) {
+			r.nocacheSaveUnitState(unitState.unitName, unitState.unitState, unitState.deadline.Sub(time.Now()))
+		} else {
+			delete(r.unitStateCache, unitName)
+		}
+
+	}
+
+	defer r.cachesMu.Unlock()
+
 }
 
 func (r *RPCRegistry) Close() {
@@ -161,6 +205,18 @@ func (r *RPCRegistry) UnitHeartbeat(unitName, machID string, ttl time.Duration) 
 		defer debug.Exit_(debug.Enter_(unitName, machID))
 	}
 
+	err := r.nocacheUnitHeartbeat(unitName, machID, ttl)
+	if err == nil {
+		r.cacheUnitHeartbeat(unitName, machID, ttl)
+	}
+	return err
+}
+
+func (r *RPCRegistry) nocacheUnitHeartbeat(unitName, machID string, ttl time.Duration) error {
+	if DebugRPCRegistry {
+		defer debug.Exit_(debug.Enter_(unitName, machID))
+	}
+
 	_, err := r.getClient().UnitHeartbeat(r.ctx(), &pb.Heartbeat{
 		Name:      unitName,
 		MachineID: machID,
@@ -179,6 +235,15 @@ func (r *RPCRegistry) RemoveUnitState(unitName string) error {
 }
 
 func (r *RPCRegistry) SaveUnitState(unitName string, unitState *unit.UnitState, ttl time.Duration) {
+	if DebugRPCRegistry {
+		defer debug.Exit_(debug.Enter_(unitName, unitState))
+	}
+
+	r.nocacheSaveUnitState(unitName, unitState, ttl)
+	r.cacheUnitState(unitName, unitState, ttl)
+}
+
+func (r *RPCRegistry) nocacheSaveUnitState(unitName string, unitState *unit.UnitState, ttl time.Duration) {
 	if DebugRPCRegistry {
 		defer debug.Exit_(debug.Enter_(unitName, unitState))
 	}
@@ -355,4 +420,26 @@ func (r *RPCRegistry) UpdateEngineVersion(from, to int) error {
 
 func (r *RPCRegistry) LatestDaemonVersion() (*semver.Version, error) {
 	return nil, errors.New("Latest daemon version function not implemented")
+}
+
+func (r *RPCRegistry) cacheUnitState(unitName string, unitState *unit.UnitState, ttl time.Duration) {
+	r.cachesMu.Lock()
+	defer r.cachesMu.Unlock()
+	r.unitStateCache[unitName] = unitStateCacheLine{
+		unitName:  unitName,
+		unitState: unitState,
+		deadline:  time.Now().Add(ttl),
+	}
+
+}
+
+func (r *RPCRegistry) cacheUnitHeartbeat(unitName, machID string, ttl time.Duration) {
+	r.cachesMu.Lock()
+	defer r.cachesMu.Unlock()
+
+	r.heartbeatCache[unitName] = heartbeatCacheLine{
+		unitName: unitName,
+		machID:   machID,
+		deadline: time.Now().Add(ttl),
+	}
 }
