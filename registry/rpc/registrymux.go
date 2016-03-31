@@ -158,10 +158,14 @@ func (r *RegistryMux) EngineChanged(newEngine machine.MachineState) {
 	r.handlingEngineChange.Lock()
 	defer r.handlingEngineChange.Unlock()
 
+	stopServer := false
+	if r.currentEngine.ID != newEngine.ID {
+		stopServer = true
+	}
 	r.currentEngine = newEngine
 	log.Infof("Engine changed, checking capabilities %+v", newEngine)
 	if r.localMachine.State().Capabilities.Has(machine.CapGRPC) {
-		if r.rpcserver != nil && r.rpcRegistry != nil && !r.rpcRegistry.IsRegistryReady() {
+		if r.rpcserver != nil && ((r.rpcRegistry != nil && !r.rpcRegistry.IsRegistryReady()) || stopServer) {
 			// If the engine changed, we need to stop the rpc server
 			r.rpcserver.Stop()
 			r.rpcserver = nil
