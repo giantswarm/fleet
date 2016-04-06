@@ -36,7 +36,6 @@ type Config struct {
 	DisableEngine           bool
 	EnableGRPC              bool
 	DisableWatches          bool
-	EnableGRPC              bool
 	VerifyUnits             bool
 	AuthorizedKeysFile      string
 }
