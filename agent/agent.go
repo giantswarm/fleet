@@ -15,9 +15,10 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/log"
@@ -107,7 +108,6 @@ func (a *Agent) unloadUnit(unitName string) {
 	a.um.TriggerStop(unitName)
 
 	a.uGen.Unsubscribe(unitName)
-
 	a.um.Unload(unitName)
 }
 

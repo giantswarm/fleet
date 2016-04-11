@@ -16,7 +16,6 @@ package api
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -24,6 +23,8 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/client"
 	"github.com/coreos/fleet/job"

@@ -15,8 +15,9 @@
 package unit
 
 import (
-	"encoding/json"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/pkg"

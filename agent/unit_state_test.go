@@ -15,7 +15,6 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -23,6 +22,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/jonboulle/clockwork"
 

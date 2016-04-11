@@ -15,10 +15,11 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
+
+	json "github.com/pquerna/ffjson/ffjson"
 
 	etcd "github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/etcd/client"
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-systemd/activation"
@@ -68,7 +69,7 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	mgr, err := systemd.NewSystemdUnitManager(systemd.DefaultUnitsDirectory)
+	mgr, err := systemd.NewSystemdUnitManager(cfg, systemd.DefaultUnitsDirectory)
 	if err != nil {
 		return nil, err
 	}
