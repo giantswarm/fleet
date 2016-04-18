@@ -1,15 +1,11 @@
 {
 	"ImportPath": "github.com/coreos/fleet",
-	"GoVersion": "go1.5.1",
+	"GoVersion": "go1.5",
+	"GodepVersion": "v60",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
-		{
-			"ImportPath": "code.google.com/p/go-uuid/uuid",
-			"Comment": "null-15",
-			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
-		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
 			"Comment": "v2.2.0-alpha.1-138-gb2d33e6",
@@ -43,11 +39,6 @@
 			"ImportPath": "github.com/coreos/go-systemd/unit",
 			"Comment": "v3-48-g1f2251651d19",
 			"Rev": "1f2251651d199b698a0be8c8bf2283178a2a97ed"
-		},
-		{
-			"ImportPath": "github.com/docker/libcontainer/netlink",
-			"Comment": "v1.1.0-44-g8c0303d",
-			"Rev": "8c0303d92862eccc4bb9a07d7dac9065e4a32014"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",
@@ -86,12 +77,28 @@
 			"Rev": "907cca0f578a5316fb864ec6992dc3d9730ec58c"
 		},
 		{
+			"ImportPath": "github.com/vishvananda/netlink",
+			"Rev": "4fdf23c882685717a2a750114bdc904afeafc16b"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netlink/nl",
+			"Rev": "4fdf23c882685717a2a750114bdc904afeafc16b"
+		},
+		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
-			"Rev": "81bf7719a6b7ce9b665598222362b50122dfc13b"
+			"Rev": "9e7f5dc375abeb9619ea3c5c58502c428f457aa2"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/ssh",
-			"Rev": "81bf7719a6b7ce9b665598222362b50122dfc13b"
+			"Rev": "9e7f5dc375abeb9619ea3c5c58502c428f457aa2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh/agent",
+			"Rev": "9e7f5dc375abeb9619ea3c5c58502c428f457aa2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh/terminal",
+			"Rev": "9e7f5dc375abeb9619ea3c5c58502c428f457aa2"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
@@ -114,8 +121,17 @@
 			"Rev": "d3edb0282bde692467788c50070a9211afe75cf3"
 		},
 		{
+			"ImportPath": "github.com/pborman/uuid",
+			"Comment": "v1.0-11-gc55201b03606",
+			"Rev": "c55201b036063326c5b1b89ccfe45a184973d073"
+		},
+		{
 			"ImportPath": "google.golang.org/grpc",
 			"Rev": "178b68e2819d3ed711040301c12f3f97b6c270ce"
+		},
+		{
+			"ImportPath": "google.golang.org/api/googleapi/internal/uritemplates",
+			"Rev": "d3edb0282bde692467788c50070a9211afe75cf3"
 		}
 	]
 }

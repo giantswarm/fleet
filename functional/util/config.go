@@ -26,6 +26,7 @@ import (
 
 const (
 	fleetAPIPort = 54728
+	FleetTTL     = "3s"
 	cloudConfig  = `#cloud-config
 
 write_files:
@@ -35,6 +36,7 @@ write_files:
     etcd_servers=[{{printf "%q" .EtcdEndpoint}}]
     etcd_key_prefix={{.EtcdKeyPrefix}}
     public_ip={{.IP}}
+    agent_ttl={{.FleetAgentTTL}}
 
 ssh_authorized_keys:
  - {{printf "%q" .PublicKey}}
@@ -49,13 +51,17 @@ coreos:
       Address={{.IP}}/16
   - name: fleet.socket
     command: start
+  - name: fleet-tcp.socket
+    command: start
     content: |
      [Socket]
      ListenStream={{printf "%d" .FleetAPIPort}}
+     Service=fleet.service
   - name: fleet.service
     command: start
     content: |
      [Service]
+     Environment=FLEET_METADATA=hostname=%H
      ExecStart=/opt/fleet/fleetd -config /opt/fleet/fleet.conf
 `
 )
@@ -73,6 +79,7 @@ type configValues struct {
 	EtcdEndpoint  string
 	EtcdKeyPrefix string
 	FleetAPIPort  int
+	FleetAgentTTL string
 }
 
 func init() {
@@ -109,6 +116,7 @@ func BuildCloudConfig(dst io.Writer, ip, etcdEndpoint, etcdKeyPrefix string) err
 		EtcdEndpoint:  etcdEndpoint,
 		EtcdKeyPrefix: etcdKeyPrefix,
 		FleetAPIPort:  fleetAPIPort,
+		FleetAgentTTL: FleetTTL,
 	}
 
 	return configTemplate.Execute(dst, &values)

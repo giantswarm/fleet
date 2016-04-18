@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 var fleetctlBinPath string
@@ -98,7 +99,7 @@ type UnitState struct {
 
 func ParseUnitStates(units []string) (states []UnitState) {
 	for _, unit := range units {
-		cols := strings.SplitN(unit, "\t", 3)
+		cols := strings.Fields(unit)
 		if len(cols) == 3 {
 			machine := strings.SplitN(cols[2], "/", 2)[0]
 			states = append(states, UnitState{cols[0], cols[1], machine})
@@ -135,4 +136,21 @@ func TempUnit(contents string) (string, error) {
 	}
 
 	return svc, nil
+}
+
+func WaitForState(stateCheckFunc func() bool) (time.Duration, error) {
+	timeout := 15 * time.Second
+	alarm := time.After(timeout)
+	ticker := time.Tick(250 * time.Millisecond)
+	for {
+		select {
+		case <-alarm:
+			// Generic message. Callers can build more specific ones using the returned timeout value.
+			return timeout, fmt.Errorf("Failed to reach expected state within %v.", timeout)
+		case <-ticker:
+			if stateCheckFunc() {
+				return timeout, nil
+			}
+		}
+	}
 }

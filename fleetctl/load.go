@@ -46,6 +46,11 @@ func init() {
 }
 
 func runLoadUnits(args []string) (exit int) {
+	if len(args) == 0 {
+		stderr("No units given")
+		return 0
+	}
+
 	if err := lazyCreateUnits(args); err != nil {
 		stderr("Error creating units: %v", err)
 		return 1
@@ -66,17 +71,7 @@ func runLoadUnits(args []string) (exit int) {
 		}
 	}
 
-	if !sharedFlags.NoBlock {
-		errchan := waitForUnitStates(loading, job.JobStateLoaded, sharedFlags.BlockAttempts, os.Stdout)
-		for err := range errchan {
-			stderr("Error waiting for units: %v", err)
-			exit = 1
-		}
-	} else {
-		for _, name := range loading {
-			stdout("Triggered unit %s load", name)
-		}
-	}
+	exit = tryWaitForUnitStates(loading, "load", job.JobStateLoaded, getBlockAttempts(), os.Stdout)
 
 	return
 }

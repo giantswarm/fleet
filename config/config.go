@@ -35,6 +35,7 @@ type Config struct {
 	TokenLimit              int
 	DisableEngine           bool
 	EnableGRPC              bool
+	DisableWatches          bool
 	VerifyUnits             bool
 	AuthorizedKeysFile      string
 }

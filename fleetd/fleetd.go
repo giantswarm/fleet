@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/rakyll/globalconf"
@@ -35,6 +36,7 @@ import (
 
 const (
 	DefaultConfigFile = "/etc/fleet/fleet.conf"
+	FleetdDescription = "fleetd is the server component of fleet, a simple orchestration system for scheduling systemd units in a cluster."
 )
 
 func main() {
@@ -43,7 +45,7 @@ func main() {
 	cfgPath := userset.String("config", "", fmt.Sprintf("Path to config file. Fleet will look for a config at %s by default.", DefaultConfigFile))
 
 	userset.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "%s\nUsage of %s:\n", FleetdDescription, os.Args[0])
 		userset.PrintDefaults()
 	}
 
@@ -54,11 +56,15 @@ func main() {
 	}
 
 	args := userset.Args()
-	if len(args) == 1 && args[0] == "version" {
-		*printVersion = true
-	} else if len(args) != 0 {
-		userset.Usage()
-		os.Exit(1)
+	if len(args) > 0 {
+		// support `fleetd version` the same as `fleetd --version`
+		if args[0] == "version" {
+			*printVersion = true
+		} else {
+			fmt.Fprintf(os.Stderr, "%s takes no arguments. Did you mean to invoke fleetctl instead?\n", os.Args[0])
+			userset.Usage()
+			os.Exit(1)
+		}
 	}
 
 	if *printVersion {
@@ -76,13 +82,14 @@ func main() {
 	cfgset.String("etcd_cafile", "", "SSL Certificate Authority file used to secure etcd communication")
 	cfgset.String("etcd_key_prefix", registry.DefaultKeyPrefix, "Keyspace for fleet data in etcd")
 	cfgset.Float64("etcd_request_timeout", 1.0, "Amount of time in seconds to allow a single etcd request before considering it failed.")
-	cfgset.Float64("engine_reconcile_interval", 5.0, "Interval at which the engine should reconcile the cluster schedule in etcd.")
+	cfgset.Float64("engine_reconcile_interval", 2.0, "Interval at which the engine should reconcile the cluster schedule in etcd.")
 	cfgset.String("public_ip", "", "IP address that fleet machine should publish")
 	cfgset.String("metadata", "", "List of key-value metadata to assign to the fleet machine")
 	cfgset.String("agent_ttl", agent.DefaultTTL, "TTL in seconds of fleet machine state in etcd")
 	cfgset.Int("token_limit", 100, "Maximum number of entries per page returned from API requests")
 	cfgset.Bool("enable_grpc", true, "When possible, uses grpc to communicate between engine and agent")
 	cfgset.Bool("disable_engine", false, "Disable the engine entirely, use with care")
+	cfgset.Bool("disable_watches", false, "Disable the use of etcd watches. Increases scheduling latency")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
 
@@ -99,8 +106,13 @@ func main() {
 	}
 	srv.Run()
 
+	srvMutex := sync.Mutex{}
+
 	reconfigure := func() {
 		log.Infof("Reloading configuration from %s", *cfgPath)
+
+		srvMutex.Lock()
+		defer srvMutex.Unlock()
 
 		cfg, err := getConfig(cfgset, *cfgPath)
 		if err != nil {
@@ -108,7 +120,7 @@ func main() {
 		}
 
 		log.Infof("Restarting server components")
-		srv.Stop()
+		srv.Kill()
 
 		srv, err = server.New(*cfg)
 		if err != nil {
@@ -119,13 +131,20 @@ func main() {
 
 	shutdown := func() {
 		log.Infof("Gracefully shutting down")
-		srv.Stop()
+
+		srvMutex.Lock()
+		defer srvMutex.Unlock()
+
+		srv.Kill()
 		srv.Purge()
 		os.Exit(0)
 	}
 
 	writeState := func() {
 		log.Infof("Dumping server state")
+
+		srvMutex.Lock()
+		defer srvMutex.Unlock()
 
 		encoded, err := json.Marshal(srv)
 		if err != nil {
@@ -197,6 +216,7 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		AgentTTL:                (*flagset.Lookup("agent_ttl")).Value.(flag.Getter).Get().(string),
 		DisableEngine:           (*flagset.Lookup("disable_engine")).Value.(flag.Getter).Get().(bool),
 		EnableGRPC:              (*flagset.Lookup("enable_grpc")).Value.(flag.Getter).Get().(bool),
+		DisableWatches:          (*flagset.Lookup("disable_watches")).Value.(flag.Getter).Get().(bool),
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		TokenLimit:              (*flagset.Lookup("token_limit")).Value.(flag.Getter).Get().(int),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sync"
 	"time"
 
 	etcd "github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/etcd/client"
@@ -43,6 +44,8 @@ const (
 	// machineStateRefreshInterval is the amount of time the server will
 	// wait before each attempt to refresh the local machine state
 	machineStateRefreshInterval = time.Minute
+
+	shutdownTimeout = time.Minute
 )
 
 type Server struct {
@@ -53,13 +56,15 @@ type Server struct {
 	engine        *engine.Engine
 	mach          *machine.CoreOSMachine
 	hrt           heart.Heart
-	mon           *heart.Monitor
+	mon           *Monitor
 	api           *api.Server
 	disableEngine bool
 
 	engineReconcileInterval time.Duration
 
-	stop chan bool
+	killc chan struct{}  // used to signal monitor to shutdown server
+	stopc chan struct{}  // used to terminate all other goroutines
+	wg    sync.WaitGroup // used to co-ordinate shutdown
 }
 
 func New(cfg config.Config) (*Server, error) {
@@ -119,7 +124,10 @@ func New(cfg config.Config) (*Server, error) {
 
 	a := agent.New(mgr, gen, reg, mach, agentTTL)
 
-	rStream := registry.NewEtcdEventStream(kAPI, cfg.EtcdKeyPrefix)
+	var rStream pkg.EventStream
+	if !cfg.DisableWatches {
+		rStream = registry.NewEtcdEventStream(kAPI, cfg.EtcdKeyPrefix)
+	}
 
 	ar := agent.NewReconciler(reg, rStream)
 
@@ -140,7 +148,7 @@ func New(cfg config.Config) (*Server, error) {
 	}
 
 	hrt := heart.New(reg, mach)
-	mon := heart.NewMonitor(agentTTL)
+	mon := NewMonitor(agentTTL)
 
 	apiServer := api.NewServer(listeners, api.NewServeMux(reg, cfg.TokenLimit))
 	apiServer.Serve()
@@ -157,7 +165,8 @@ func New(cfg config.Config) (*Server, error) {
 		hrt:         hrt,
 		mon:         mon,
 		api:         apiServer,
-		stop:        nil,
+		killc:       make(chan struct{}),
+		stopc:       nil,
 		engineReconcileInterval: eIval,
 		disableEngine:           cfg.DisableEngine,
 	}
@@ -195,40 +204,70 @@ func (s *Server) Run() {
 		time.Sleep(sleep)
 	}
 
+	go s.Supervise()
+
 	log.Infof("Starting server components")
+	s.stopc = make(chan struct{})
+	s.wg = sync.WaitGroup{}
+	beatc := make(chan *unit.UnitStateHeartbeat)
 
-	s.stop = make(chan bool)
-
-	go s.Monitor()
-	go s.api.Available(s.stop)
-	go s.mach.PeriodicRefresh(machineStateRefreshInterval, s.stop)
-	go s.agent.Heartbeat(s.stop)
-	go s.aReconciler.Run(s.agent, s.stop)
+	components := []func(){
+		func() { s.api.Available(s.stopc) },
+		func() { s.mach.PeriodicRefresh(machineStateRefreshInterval, s.stopc) },
+		func() { s.agent.Heartbeat(s.stopc) },
+		func() { s.aReconciler.Run(s.agent, s.stopc) },
+		func() { s.usGen.Run(beatc, s.stopc) },
+		func() { s.usPub.Run(beatc, s.stopc) },
+	}
 	if s.disableEngine {
 		log.Info("Not starting engine; disable-engine is set")
 	} else {
-		go s.engine.Run(s.engineReconcileInterval, s.stop)
+		components = append(components, func() { s.engine.Run(s.engineReconcileInterval, s.stopc) })
 	}
-
-	beatchan := make(chan *unit.UnitStateHeartbeat)
-	go s.usGen.Run(beatchan, s.stop)
-	go s.usPub.Run(beatchan, s.stop)
+	for _, f := range components {
+		f := f
+		s.wg.Add(1)
+		go func() {
+			f()
+			s.wg.Done()
+		}()
+	}
 }
 
-// Monitor tracks the health of the Server. If the Server is ever deemed
-// unhealthy, the Server is restarted.
-func (s *Server) Monitor() {
-	err := s.mon.Monitor(s.hrt, s.stop)
-	if err != nil {
+// Supervise monitors the life of the Server and coordinates its shutdown.
+// A shutdown occurs when the monitor returns, either because a health check
+// fails or a user triggers a shutdown. If the shutdown is due to a health
+// check failure, the Server is restarted. Supervise will block shutdown until
+// all components have finished shutting down or a timeout occurs; if this
+// happens, the Server will not automatically be restarted.
+func (s *Server) Supervise() {
+	sd, err := s.mon.Monitor(s.hrt, s.killc)
+	if sd {
+		log.Infof("Server monitor triggered: told to shut down")
+	} else {
 		log.Errorf("Server monitor triggered: %v", err)
-
-		s.Stop()
+	}
+	close(s.stopc)
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(shutdownTimeout):
+		log.Errorf("Timed out waiting for server to shut down")
+		sd = true
+	}
+	if !sd {
+		log.Infof("Restarting server")
 		s.Run()
 	}
 }
 
-func (s *Server) Stop() {
-	close(s.stop)
+// Kill is used to gracefully terminate the server by triggering the Monitor to shut down
+func (s *Server) Kill() {
+	close(s.killc)
 }
 
 func (s *Server) Purge() {

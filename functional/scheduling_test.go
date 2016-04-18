@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/coreos/fleet/functional/platform"
 	"github.com/coreos/fleet/functional/util"
@@ -57,9 +56,9 @@ func TestScheduleMachineOf(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		ping := fmt.Sprintf("fixtures/units/ping.%d.service", i)
 		pong := fmt.Sprintf("fixtures/units/pong.%d.service", i)
-		_, _, err := cluster.Fleetctl(m0, "start", "--no-block", ping, pong)
+		stdout, stderr, err := cluster.Fleetctl(m0, "start", "--no-block", ping, pong)
 		if err != nil {
-			t.Errorf("Failed starting units: %v", err)
+			t.Errorf("Failed starting units: \nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
 		}
 	}
 
@@ -175,9 +174,9 @@ func TestScheduleConflicts(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		unit := fmt.Sprintf("fixtures/units/conflict.%d.service", i)
-		_, _, err := cluster.Fleetctl(m0, "start", "--no-block", unit)
+		stdout, stderr, err := cluster.Fleetctl(m0, "start", "--no-block", unit)
 		if err != nil {
-			t.Errorf("Failed starting unit %s: %v", unit, err)
+			t.Errorf("Failed starting unit %s: \nstdout: %s\nstderr: %s\nerr: %v", unit, stdout, stderr, err)
 		}
 	}
 
@@ -234,8 +233,8 @@ func TestScheduleOneWayConflict(t *testing.T) {
 
 	// Start a unit that conflicts with a yet-to-be-scheduled unit
 	name := "fixtures/units/conflicts-with-hello.service"
-	if _, _, err := cluster.Fleetctl(m0, "start", "--no-block", name); err != nil {
-		t.Fatalf("Failed starting unit %s: %v", name, err)
+	if stdout, stderr, err := cluster.Fleetctl(m0, "start", "--no-block", name); err != nil {
+		t.Fatalf("Failed starting unit %s: \nstdout: %s\nstderr: %s\nerr: %v", name, stdout, stderr, err)
 	}
 
 	active, err := cluster.WaitForNActiveUnits(m0, 1)
@@ -249,7 +248,9 @@ func TestScheduleOneWayConflict(t *testing.T) {
 
 	// Start a unit that has not defined conflicts
 	name = "fixtures/units/hello.service"
-	cluster.Fleetctl(m0, "start", "--no-block", name)
+	if stdout, stderr, err := cluster.Fleetctl(m0, "start", "--no-block", name); err != nil {
+		t.Fatalf("Failed starting unit %s: \nstdout: %s\nstderr: %s\nerr: %v", name, stdout, stderr, err)
+	}
 
 	// Both units should show up, but only conflicts-with-hello.service
 	// should report ACTIVE
@@ -281,19 +282,28 @@ func TestScheduleOneWayConflict(t *testing.T) {
 	if _, _, err := cluster.Fleetctl(m0, "destroy", name); err != nil {
 		t.Fatalf("Failed destroying %s", name)
 	}
-	// TODO(jonboulle): fix this race. Since we no longer immediately
-	// remove unit state on unit destruction (and instead wait for
-	// UnitStateGenerator/UnitStatePublisher to clean up), the old unit
-	// shows up as active for quite some time.
-	time.Sleep(5 * time.Second)
-	stdout, _, err = cluster.Fleetctl(m0, "list-units", "--no-legend")
+
+	// Wait for the destroyed unit to actually disappear
+	timeout, err := util.WaitForState(
+		func() bool {
+			stdout, _, err := cluster.Fleetctl(m0, "list-units", "--no-legend", "--full", "--fields", "unit,active,machine")
+			if err != nil {
+				return false
+			}
+			lines := strings.Split(strings.TrimSpace(stdout), "\n")
+			states := util.ParseUnitStates(lines)
+			for _, state := range states {
+				if state.Name == name {
+					return false
+				}
+			}
+			return true
+		},
+	)
 	if err != nil {
-		t.Fatalf("Failed to run list-units: %v", err)
+		t.Fatalf("Destroyed unit %s not gone within %v", name, timeout)
 	}
-	units = strings.Split(strings.TrimSpace(stdout), "\n")
-	if len(units) != 1 {
-		t.Fatalf("Did not find one unit in cluster: \n%s", stdout)
-	}
+
 	active, err = cluster.WaitForNActiveUnits(m0, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -346,9 +356,9 @@ MachineID=%s
 		}
 		defer os.Remove(unitFile)
 
-		_, _, err = cluster.Fleetctl(m0, "start", unitFile)
+		stdout, stderr, err := cluster.Fleetctl(m0, "start", unitFile)
 		if err != nil {
-			t.Fatalf("Failed starting unit file %s: %v", unitFile, err)
+			t.Fatalf("Failed starting unit file %s: \nstdout: %s\nstderr: %s\nerr: %v", unitFile, stdout, stderr, err)
 		}
 
 		unit := filepath.Base(unitFile)
@@ -390,7 +400,10 @@ func TestScheduleGlobalUnits(t *testing.T) {
 	}
 
 	// Launch a couple of simple units
-	cluster.Fleetctl(m0, "start", "--no-block", "fixtures/units/hello.service", "fixtures/units/goodbye.service")
+	stdout, stderr, err := cluster.Fleetctl(m0, "start", "--no-block", "fixtures/units/hello.service", "fixtures/units/goodbye.service")
+	if err != nil {
+		t.Fatalf("Failed starting units: \nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
+	}
 
 	// Both units should show up active
 	_, err = cluster.WaitForNActiveUnits(m0, 2)
@@ -399,7 +412,10 @@ func TestScheduleGlobalUnits(t *testing.T) {
 	}
 
 	// Now add a global unit
-	cluster.Fleetctl(m0, "start", "--no-block", "fixtures/units/global.service")
+	stdout, stderr, err = cluster.Fleetctl(m0, "start", "--no-block", "fixtures/units/global.service")
+	if err != nil {
+		t.Fatalf("Failed starting unit: \nstdout: %s\nstderr: %s\nerr: %v", stdout, stderr, err)
+	}
 
 	// Should see 2 + 3 units
 	states, err := cluster.WaitForNActiveUnits(m0, 5)

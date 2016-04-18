@@ -11,7 +11,7 @@ Every system in the fleet cluster runs a single `fleetd` daemon. Each daemon enc
 - The engine uses a _lease model_ to enforce that only one engine is running at a time. Every time a reconciliation is due, an engine will attempt to take a lease on etcd. If the lease succeeds, the reconciliation proceeds; otherwise, that engine will remain idle until the next reconciliation period begins.
 - The engine uses a simplistic "least-loaded" scheduling algorithm: when considering where to schedule a given unit, preference is given to agents running the smallest number of units.
 
-The reconciliation loop of the engine can be disabled with the `--disable-engine` flag. This means that
+The reconciliation loop of the engine can be disabled with the `disable_engine` config flag. This means that
 this `fleetd` daemon will *never* become a cluster leader. If all running daemons have this setting,
 your cluster is dead; i.e. no jobs will be scheduled. Use with care.
 
@@ -50,18 +50,28 @@ A UnitState object represents the state of a Unit in the fleet engine. A UnitSta
 
 ## Preview Release
 
-Current releases of fleet don't currently perform any authentication or authorization for submitted units. This means that any client that can access your etcd cluster can potentially run arbitrary code on many of your machines very easily.
+Current releases of fleet don't currently perform any authentication or authorization for submitted units. This means that any client that can access your etcd cluster can potentially run arbitrary code on many of your machines very easily, thus it is strongly recommended to enable [TLS authentication][etcd-security] on the etcd side, set proper file permissions to the keypair on the host and [configure fleet][fleet-tls] to use keypair.
 
 ## Securing etcd
 
 You should avoid public access to etcd and instead run fleet [from your local laptop][using-the-client] with the `--tunnel` flag to run commands over an SSH tunnel. You can alias this flag for easier usage: `alias fleetctl=fleetctl --tunnel 10.10.10.10` - or use the environment variable `FLEETCTL_TUNNEL`.
 
-## Other Notes
+## Securing fleetd
 
-Since it interacts directly with systemd over D-Bus, the fleetd daemon must be run with elevated privileges (i.e. as root) in order to perform operations like starting and stopping services. From the [systemd D-Bus documentation][systemd-dbus]:
+systemd version 216 or later supports [`polkit(8)`][polkit] rules to control access for unprivileged users. It is recommended to run fleetd under its own `fleet` user and group, and to set the permissions of the fleetd API socket to mode `0660`, allowing only that user and group to write to the socket. This configuration will require a login user to be in the `fleet` group to perform actions with fleetd. The polkit rule below grants the the fleetd process running as the unprivileged `fleet` user to communicate with systemd over [D-Bus][d-bus]:
 
-> In contrast to most of the other services of the systemd suite PID 1 does not use PolicyKit for controlling access to privileged operations, but relies exclusively on the low-level D-Bus policy language. (This is done in order to avoid a cyclic dependency between PolicyKit and systemd/PID 1.) This means that sensitive operations exposed by PID 1 on the bus are generally not available to unprivileged processes directly.
+```js
+polkit.addRule(function(action, subject) {
+  if (action.id.indexOf("org.freedesktop.systemd1.") == 0 &&
+      subject.user == "fleet") {
+        return polkit.Result.YES;
+  }
+});
+```
 
+[etcd-security]: https://github.com/coreos/etcd/blob/master/Documentation/security.md
+[d-bus]: https://www.freedesktop.org/wiki/Software/dbus/
+[fleet-tls]: deployment-and-configuration.md#tls-authentication
+[polkit]: https://www.freedesktop.org/software/polkit/docs/latest/polkit.8.html
 [states documentation]: states.md
 [using-the-client]: using-the-client.md#get-up-and-running
-[systemd-dbus]: http://www.freedesktop.org/wiki/Software/systemd/dbus/
