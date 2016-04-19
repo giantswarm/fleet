@@ -57,7 +57,7 @@ func (g *UnitStateGenerator) MarshalJSON() ([]byte, error) {
 
 // Run periodically calls Generate and sends received *UnitStateHeartbeat
 // objects to the provided channel.
-func (g *UnitStateGenerator) Run(receiver chan<- *UnitStateHeartbeat, stop <-chan struct{}) {
+func (g *UnitStateGenerator) Run(receiver chan<- *UnitStateHeartbeats, stop <-chan struct{}) {
 	tick := time.Tick(time.Second)
 	for {
 		select {
