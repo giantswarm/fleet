@@ -23,6 +23,7 @@ import (
 
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
+	pb "github.com/coreos/fleet/protobuf"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -62,7 +63,7 @@ func (r *EtcdRegistry) UnitStates() (states []*unit.UnitState, err error) {
 	}
 
 	var sorted MUSKeys
-	for key, _ := range mus {
+	for key := range mus {
 		sorted = append(sorted, key)
 	}
 	sort.Sort(sorted)
@@ -166,6 +167,25 @@ func (r *EtcdRegistry) SaveUnitState(jobName string, unitState *unit.UnitState, 
 
 	newKey := r.unitStatePath(unitState.MachineID, jobName)
 	r.kAPI.Set(r.ctx(), newKey, val, opts)
+}
+
+// SaveUnitStates persists the given UnitStates to the Registry
+func (r *EtcdRegistry) SaveUnitStates(unitStates []*pb.SaveUnitStateRequest) {
+	for _, us := range unitStates {
+		name := us.Name
+		if us.State.Name != "" {
+			name = us.State.Name
+		}
+		state := &unit.UnitState{
+			LoadState:   us.State.LoadState,
+			ActiveState: us.State.ActiveState,
+			SubState:    us.State.SubState,
+			MachineID:   us.State.MachineID,
+			UnitHash:    us.State.Hash,
+			UnitName:    name,
+		}
+		r.SaveUnitState(name, state, time.Duration(us.TTL)*time.Second)
+	}
 }
 
 // Delete the state from the Registry for the given Job's Unit

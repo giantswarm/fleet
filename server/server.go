@@ -209,7 +209,7 @@ func (s *Server) Run() {
 	log.Infof("Starting server components")
 	s.stopc = make(chan struct{})
 	s.wg = sync.WaitGroup{}
-	beatc := make(chan *unit.UnitStateHeartbeat)
+	beatc := make(chan *unit.UnitStateHeartbeats)
 
 	components := []func(){
 		func() { s.api.Available(s.stopc) },
