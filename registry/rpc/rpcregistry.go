@@ -19,7 +19,9 @@ import (
 )
 
 const (
-	grpcConnectionTimeout = 5000 * time.Millisecond
+	grpcConnectionTimeout   = 5000 * time.Millisecond
+	grpcDialingTimeout      = 12 * time.Second
+	grpcMaxReconnectTimeout = 120 * time.Second
 
 	grpcConnectionStateReady      = "READY"
 	grpcConnectionStateConnecting = "CONNECTING"
@@ -65,7 +67,9 @@ func (r *RPCRegistry) getClient() pb.RegistryClient {
 		} else if state == grpcConnectionStateFailure || state == grpcConnectionStateShutdown {
 			log.Infof("gRPC connection state '%s' reports an error in the connection", state)
 			log.Info("Reconnecting gRPC peer to fleet-engine...")
-			r.Connect()
+			if err := r.Connect(); err == nil {
+				break
+			}
 		}
 
 		time.Sleep(grpcConnectionTimeout)
@@ -74,16 +78,37 @@ func (r *RPCRegistry) getClient() pb.RegistryClient {
 	return r.registryClient
 }
 
-func (r *RPCRegistry) Connect() {
+// Reconnect will try to connect to a gRPC engine otherwise will fallback to an etcd communication mode
+func (r *RPCRegistry) Reconnect() error {
+	ticker := time.Tick(5 * time.Second)
+	alert := time.After(grpcMaxReconnectTimeout)
+
+	for {
+		select {
+		case <-alert:
+			return errors.New("Unable to connect to the gRPC after multiple retries!")
+		case <-ticker:
+			if err := r.Connect(); err == nil {
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (r *RPCRegistry) Connect() error {
 	// We want the connection operation to block and constantly reconnect using grpc backoff
 	log.Info("Starting gRPC connection to fleet-engine...")
-	connection, err := grpc.Dial(":fleet-engine:", grpc.WithTimeout(12*time.Second), grpc.WithInsecure(), grpc.WithDialer(r.dialer), grpc.WithBlock())
+	connection, err := grpc.Dial(":fleet-engine:", grpc.WithTimeout(grpcDialingTimeout), grpc.WithInsecure(), grpc.WithDialer(r.dialer), grpc.WithBlock())
 	if err != nil {
-		log.Fatalf("Unable to dial to registry: %s", err)
+		log.Errorf("Unable to dial to registry: %s", err)
+		return err
 	}
 	r.registryConn = connection
 	r.registryClient = pb.NewRegistryClient(r.registryConn)
 	log.Info("Connected succesfully to fleet-engine via grpc!")
+
+	return nil
 }
 
 func (r *RPCRegistry) Close() {
