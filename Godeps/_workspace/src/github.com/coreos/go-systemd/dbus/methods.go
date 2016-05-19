@@ -281,7 +281,7 @@ type LinkUnitFileChange EnableUnitFileChange
 // symlink.
 func (c *Conn) LinkUnitFiles(files []string, runtime bool, force bool) ([]LinkUnitFileChange, error) {
 	result := make([][]interface{}, 0)
-	err := c.sysobj.Call("org.freedesktop.systemd1.Manager.LinkUnitFiles", 0, files, runtime, force).Store(&result)
+	err := c.sysobj.Call("org.freedesktop.systemd1.Manager.LinkUnitFiles", 0, files, runtime, false).Store(&result)
 	if err != nil {
 		return nil, err
 	}

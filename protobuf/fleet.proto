@@ -23,6 +23,7 @@ service Registry {
 	// mix heartbeat with *ttl''
 	rpc RemoveUnitState(UnitName) returns (GenericReply);
 	rpc SaveUnitState(SaveUnitStateRequest) returns (GenericReply);
+	rpc SaveUnitStates(SaveUnitStatesRequest) returns (GenericReply);
 	rpc ScheduleUnit(ScheduleUnitRequest) returns (GenericReply);
 	rpc SetUnitTargetState(ScheduledUnit) returns (GenericReply);
 	rpc UnscheduleUnit(UnscheduleUnitRequest) returns (GenericReply);
@@ -92,6 +93,10 @@ message SaveUnitStateRequest {
 	UnitState state = 2;
 	int32     ttl   = 3 [(gogoproto.customname) = "TTL"];
 	// machine
+}
+
+message SaveUnitStatesRequest {
+	repeated SaveUnitStateRequest save_unit_states = 1;
 }
 
 message Heartbeat {

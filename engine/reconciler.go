@@ -50,14 +50,14 @@ type Reconciler struct {
 func (r *Reconciler) Reconcile(e *Engine, stop chan struct{}) {
 	log.Debugf("Polling Registry for actionable work")
 
-	clust, err := e.clusterState()
-	if err != nil {
-		log.Errorf("Failed getting current cluster state: %v", err)
+	clust := e.ClusterState()
+	if clust == nil {
+		log.Errorf("Failed getting current cluster state %v:", clust)
 		return
 	}
 
 	for t := range r.calculateClusterTasks(clust, stop) {
-		err = doTask(t, e)
+		err := doTask(t, e)
 		if err != nil {
 			log.Errorf("Failed resolving task: task=%s err=%v", t, err)
 		}
@@ -150,9 +150,9 @@ func (r *Reconciler) calculateClusterTasks(clust *clusterState, stopchan chan st
 func doTask(t *task, e *Engine) (err error) {
 	switch t.Type {
 	case taskTypeUnscheduleUnit:
-		err = e.unscheduleUnit(t.JobName, t.MachineID)
+		go e.unscheduleUnit(t.JobName, t.MachineID)
 	case taskTypeAttemptScheduleUnit:
-		e.attemptScheduleUnit(t.JobName, t.MachineID)
+		go e.attemptScheduleUnit(t.JobName, t.MachineID)
 	default:
 		err = fmt.Errorf("unrecognized task type %q", t.Type)
 	}

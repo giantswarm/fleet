@@ -160,6 +160,15 @@ func (r *inmemoryRegistry) UnitStates() []*pb.UnitState {
 	return states
 }
 
+func (r *inmemoryRegistry) SaveUnitStates(unitStates []*pb.SaveUnitStateRequest) {
+	if DebugInmemoryRegistry {
+		defer debug.Exit_(debug.Enter_(unitStates))
+	}
+	for _, us := range unitStates {
+		r.SaveUnitState(us.Name, us.State, time.Duration(us.TTL)*time.Second)
+	}
+}
+
 func (r *inmemoryRegistry) ClearUnitHeartbeat(name string) {
 	if DebugInmemoryRegistry {
 		defer debug.Exit_(debug.Enter_(name))

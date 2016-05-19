@@ -108,7 +108,7 @@ func (a *Agent) unloadUnit(unitName string) {
 
 	a.uGen.Unsubscribe(unitName)
 
-	a.um.Unload(unitName)
+	go a.um.Unload(unitName)
 }
 
 func (a *Agent) startUnit(unitName string) {

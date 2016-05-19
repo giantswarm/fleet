@@ -278,6 +278,14 @@ func (s *rpcserver) SaveUnitState(ctx context.Context, req *pb.SaveUnitStateRequ
 	return &pb.GenericReply{}, nil
 }
 
+func (s *rpcserver) SaveUnitStates(ctx context.Context, req *pb.SaveUnitStatesRequest) (*pb.GenericReply, error) {
+	if debugRPCServer {
+		defer debug.Exit_(debug.Enter_(req))
+	}
+	s.localRegistry.SaveUnitStates(req.UnitStates)
+	return &pb.GenericReply{}, nil
+}
+
 func (s *rpcserver) ScheduleUnit(ctx context.Context, unit *pb.ScheduleUnitRequest) (*pb.GenericReply, error) {
 	if debugRPCServer {
 		defer debug.Exit_(debug.Enter_(unit.Name, unit.MachineID))

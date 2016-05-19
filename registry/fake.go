@@ -24,6 +24,7 @@ import (
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/pkg/lease"
+	pb "github.com/coreos/fleet/protobuf"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -248,6 +249,25 @@ func (f *FakeRegistry) SaveUnitState(jobName string, unitState *unit.UnitState, 
 		f.jobStates[jobName] = make(map[string]*unit.UnitState)
 	}
 	f.jobStates[jobName][unitState.MachineID] = unitState
+}
+
+func (f *FakeRegistry) SaveUnitStates(unitStates []*pb.SaveUnitStateRequest) {
+	defer f.Unlock()
+	for _, us := range unitStates {
+		name := us.Name
+		if us.State.Name != "" {
+			name = us.State.Name
+		}
+		state := &unit.UnitState{
+			LoadState:   us.State.LoadState,
+			ActiveState: us.State.ActiveState,
+			SubState:    us.State.SubState,
+			MachineID:   us.State.MachineID,
+			UnitHash:    us.State.Hash,
+			UnitName:    name,
+		}
+		f.SaveUnitState(name, state, time.Duration(us.TTL)*time.Second)
+	}
 }
 
 func (f *FakeRegistry) RemoveUnitState(jobName string) error {

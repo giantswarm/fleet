@@ -73,7 +73,7 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	mgr, err := systemd.NewSystemdUnitManager(systemd.DefaultUnitsDirectory)
+	mgr, err := systemd.NewSystemdUnitManager(cfg, systemd.DefaultUnitsDirectory)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (s *Server) Run() {
 	log.Infof("Starting server components")
 	s.stopc = make(chan struct{})
 	s.wg = sync.WaitGroup{}
-	beatc := make(chan *unit.UnitStateHeartbeat)
+	beatc := make(chan *unit.UnitStateHeartbeats)
 
 	components := []func(){
 		func() { s.api.Available(s.stopc) },

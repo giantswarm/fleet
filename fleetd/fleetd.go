@@ -82,7 +82,7 @@ func main() {
 	cfgset.String("etcd_cafile", "", "SSL Certificate Authority file used to secure etcd communication")
 	cfgset.String("etcd_key_prefix", registry.DefaultKeyPrefix, "Keyspace for fleet data in etcd")
 	cfgset.Float64("etcd_request_timeout", 1.0, "Amount of time in seconds to allow a single etcd request before considering it failed.")
-	cfgset.Float64("engine_reconcile_interval", 2.0, "Interval at which the engine should reconcile the cluster schedule in etcd.")
+	cfgset.Float64("engine_reconcile_interval", 5.0, "Interval at which the engine should reconcile the cluster schedule in etcd.")
 	cfgset.String("public_ip", "", "IP address that fleet machine should publish")
 	cfgset.String("metadata", "", "List of key-value metadata to assign to the fleet machine")
 	cfgset.String("agent_ttl", agent.DefaultTTL, "TTL in seconds of fleet machine state in etcd")
@@ -92,6 +92,7 @@ func main() {
 	cfgset.Bool("disable_watches", false, "Disable the use of etcd watches. Increases scheduling latency")
 	cfgset.Bool("verify_units", false, "DEPRECATED - This option is ignored")
 	cfgset.String("authorized_keys_file", "", "DEPRECATED - This option is ignored")
+	cfgset.Bool("enable_unitstate_cache", true, "Enable an unit state cache to minimize the systemd and dbus communication overhead.")
 
 	globalconf.Register("", cfgset)
 	cfg, err := getConfig(cfgset, *cfgPath)
@@ -220,8 +221,12 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		VerifyUnits:             (*flagset.Lookup("verify_units")).Value.(flag.Getter).Get().(bool),
 		TokenLimit:              (*flagset.Lookup("token_limit")).Value.(flag.Getter).Get().(int),
 		AuthorizedKeysFile:      (*flagset.Lookup("authorized_keys_file")).Value.(flag.Getter).Get().(string),
+		EnableUnitStateCache:    (*flagset.Lookup("enable_unitstate_cache")).Value.(flag.Getter).Get().(bool),
 	}
 
+	if cfg.EnableUnitStateCache {
+		log.Info("Config option enable_unitstate_cache is activated")
+	}
 	if cfg.VerifyUnits {
 		log.Error("Config option verify_units is no longer supported - ignoring")
 	}

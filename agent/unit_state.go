@@ -24,27 +24,24 @@ import (
 
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
+	pb "github.com/coreos/fleet/protobuf"
 	"github.com/coreos/fleet/registry"
 	"github.com/coreos/fleet/unit"
 )
 
-const numPublishers = 5
-
 func NewUnitStatePublisher(reg registry.Registry, mach machine.Machine, ttl time.Duration) *UnitStatePublisher {
 	return &UnitStatePublisher{
-		mach:            mach,
-		ttl:             ttl,
-		publisher:       newPublisher(reg, ttl),
-		cache:           make(map[string]*unit.UnitState),
-		cacheMutex:      sync.RWMutex{},
-		toPublish:       make(chan string),
-		toPublishStates: make(map[string]*unit.UnitState),
-		toPublishMutex:  sync.RWMutex{},
-		clock:           clockwork.NewRealClock(),
+		mach:       mach,
+		ttl:        ttl,
+		publisher:  newPublisher(reg, ttl),
+		cache:      make(map[string]*unit.UnitState),
+		cacheMutex: sync.RWMutex{},
+		toPublish:  make(chan map[string]*unit.UnitState),
+		clock:      clockwork.NewRealClock(),
 	}
 }
 
-type publishFunc func(name string, us *unit.UnitState)
+type publishFunc func(unitStates map[string]*unit.UnitState)
 
 type UnitStatePublisher struct {
 	mach machine.Machine
@@ -56,11 +53,7 @@ type UnitStatePublisher struct {
 	// toPublish is a queue indicating unit names for which a state publish event should occur.
 	// It is possible for a unit name to end up in the queue for which a
 	// state has already been published, in which case it triggers a no-op.
-	toPublish chan string
-	// toPublishStates is a mapping containing the latest UnitState which
-	// should be published for each UnitName.
-	toPublishStates map[string]*unit.UnitState
-	toPublishMutex  sync.RWMutex
+	toPublish chan map[string]*unit.UnitState
 
 	publisher publishFunc
 
@@ -70,7 +63,7 @@ type UnitStatePublisher struct {
 // Run caches all of the heartbeat objects from the provided channel, publishing
 // them to the Registry every 5s. Heartbeat objects are also published as they
 // are received on the channel.
-func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeat, stop <-chan struct{}) {
+func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeats, stop <-chan struct{}) {
 	var period time.Duration
 	if p.ttl > 10*time.Second {
 		period = p.ttl * 4 / 5
@@ -84,56 +77,49 @@ func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeat, stop 
 			case <-stop:
 				return
 			case <-p.clock.After(period):
-				p.cacheMutex.Lock()
-				for name, us := range p.cache {
-					go p.queueForPublish(name, us)
+				if len(p.cache) > 0 {
+					go p.publisher(p.cache)
+
+					go func() {
+						p.cacheMutex.Lock()
+						for name, state := range p.cache {
+							if state == nil {
+								log.Debugf("Cleaning content of unit hearbeat cache of %s", name)
+								delete(p.cache, name)
+							}
+						}
+						p.cacheMutex.Unlock()
+					}()
 				}
-				p.pruneCache()
-				p.cacheMutex.Unlock()
+			case units := <-p.toPublish:
+				if len(units) > 0 {
+					go p.publisher(units)
+					p.clock.Now()
+				}
 			}
 		}
 	}()
 
 	machID := p.mach.State().ID
 
-	// Spawn goroutines to publish unit states. Each goroutine waits until
-	// it sees an event arrive on toPublish, then attempts to grab the
-	// relevant UnitState and publish it to the registry.
-	for i := 0; i < numPublishers; i++ {
-		go func() {
-			for {
-				select {
-				case <-stop:
-					return
-				case name := <-p.toPublish:
-					p.toPublishMutex.Lock()
-					// Grab the latest state by that name
-					us, ok := p.toPublishStates[name]
-					if !ok {
-						// If one doesn't exist, ignore.
-						p.toPublishMutex.Unlock()
-						continue
-					}
-					delete(p.toPublishStates, name)
-					p.toPublishMutex.Unlock()
-					p.publisher(name, us)
-
-				}
-			}
-		}()
-	}
-
 	for {
 		select {
 		case <-stop:
 			return
-		case bt := <-beatchan:
-			if bt.State != nil {
-				bt.State.MachineID = machID
+		case hearbeat := <-beatchan:
+			publishCache := false
+			for _, bt := range hearbeat.States {
+				if bt.State != nil {
+					bt.State.MachineID = machID
+				}
+
+				if p.updateCache(bt) {
+					publishCache = true
+				}
 			}
 
-			if p.updateCache(bt) {
-				go p.queueForPublish(bt.Name, bt.State)
+			if publishCache {
+				p.toPublish <- p.cache
 			}
 		}
 	}
@@ -142,11 +128,9 @@ func (p *UnitStatePublisher) Run(beatchan <-chan *unit.UnitStateHeartbeat, stop 
 func (p *UnitStatePublisher) MarshalJSON() ([]byte, error) {
 	p.cacheMutex.Lock()
 	data := struct {
-		Cache     map[string]*unit.UnitState
-		ToPublish map[string]*unit.UnitState
+		Cache map[string]*unit.UnitState
 	}{
-		Cache:     p.cache,
-		ToPublish: p.toPublishStates,
+		Cache: p.cache,
 	}
 	p.cacheMutex.Unlock()
 
@@ -159,19 +143,6 @@ func (p *UnitStatePublisher) pruneCache() {
 			delete(p.cache, name)
 		}
 	}
-}
-
-// queueForPublish notifies the publishing goroutines that a particular
-// UnitState should be published to the Registry. This can block and should be
-// called in a goroutine.
-func (p *UnitStatePublisher) queueForPublish(name string, us *unit.UnitState) {
-	p.toPublishMutex.Lock()
-	p.toPublishStates[name] = us
-	p.toPublishMutex.Unlock()
-	// This may block for some time, but even if it occurs after
-	// the above UnitState has already been published, it will
-	// simply trigger a no-op
-	p.toPublish <- name
 }
 
 // updateCache updates the cache of UnitStates which the UnitStatePublisher
@@ -196,35 +167,48 @@ func (p *UnitStatePublisher) updateCache(update *unit.UnitStateHeartbeat) (chang
 // UnitStatePublisher's cache are removed from the registry.
 func (p *UnitStatePublisher) Purge() {
 	for name := range p.cache {
-		p.publisher(name, nil)
+		p.cache[name] = nil
 	}
+	p.publisher(p.cache)
 }
 
 // newPublisher returns a publishFunc that publishes a single UnitState
 // by the given name to the provided Registry, with the given TTL
 func newPublisher(reg registry.Registry, ttl time.Duration) publishFunc {
-	return func(name string, us *unit.UnitState) {
-		if us == nil {
-			log.Debugf("Destroying UnitState(%s) in Registry", name)
-			err := reg.RemoveUnitState(name)
-			if err != nil {
-				log.Errorf("Failed to destroy UnitState(%s) in Registry: %v", name, err)
-			}
-		} else {
-			// Sanity check - don't want to publish incomplete UnitStates
-			// TODO(jonboulle): consider teasing apart a separate UnitState-like struct
-			// so we can rely on a UnitState always being fully hydrated?
-
-			// See https://github.com/coreos/fleet/issues/720
-			//if len(us.UnitHash) == 0 {
-			//	log.Errorf("Refusing to push UnitState(%s), no UnitHash: %#v", name, us)
-
-			if len(us.MachineID) == 0 {
-				log.Errorf("Refusing to push UnitState(%s), no MachineID: %#v", name, us)
+	return func(unitStates map[string]*unit.UnitState) {
+		states := make([]*pb.SaveUnitStateRequest, 0)
+		for name, state := range unitStates {
+			if state == nil {
+				log.Debugf("Destroying UnitState(%s) in Registry", name)
+				err := reg.RemoveUnitState(name)
+				if err != nil {
+					log.Errorf("Failed to destroy UnitState(%s) in Registry: %v", name, err)
+				}
 			} else {
-				log.Debugf("Pushing UnitState(%s) to Registry: %#v", name, us)
-				reg.SaveUnitState(name, us, ttl)
+				// Sanity check - don't want to publish incomplete UnitStates
+				// TODO(jonboulle): consider teasing apart a separate UnitState-like struct
+				// so we can rely on a UnitState always being fully hydrated?
+
+				// See https://github.com/coreos/fleet/issues/720
+				//if len(us.UnitHash) == 0
+				//	log.Errorf("Refusing to push UnitState(%s), no UnitHash: %#v", name, us)
+				if len(state.MachineID) == 0 {
+					log.Errorf("Refusing to push UnitState(%s), no MachineID: %#v", name, state)
+				} else {
+					log.Debugf("Pushing UnitState(%s) to Registry: %#v", name, state)
+					unitState := &pb.SaveUnitStateRequest{
+						Name:  name,
+						State: state.ToPB(),
+						TTL:   int32(ttl.Seconds()),
+					}
+					states = append(states, unitState)
+				}
 			}
 		}
+		if len(states) > 0 {
+			log.Debugf("Save %d unit states using unit publisher", len(states))
+			reg.SaveUnitStates(states)
+		}
+
 	}
 }

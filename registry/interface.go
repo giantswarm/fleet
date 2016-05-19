@@ -21,6 +21,7 @@ import (
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
+	pb "github.com/coreos/fleet/protobuf"
 	"github.com/coreos/fleet/unit"
 )
 
@@ -33,6 +34,7 @@ type Registry interface {
 	RemoveMachineState(machID string) error
 	RemoveUnitState(jobName string) error
 	SaveUnitState(jobName string, unitState *unit.UnitState, ttl time.Duration)
+	SaveUnitStates(unitStates []*pb.SaveUnitStateRequest)
 	ScheduleUnit(name, machID string) error
 	SetUnitTargetState(name string, state job.JobState) error
 	SetMachineState(ms machine.MachineState, ttl time.Duration) (uint64, error)

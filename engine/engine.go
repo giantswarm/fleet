@@ -35,6 +35,7 @@ const (
 
 type Engine struct {
 	rec       *Reconciler
+	recState  *Reconciler
 	registry  registry.Registry
 	cRegistry registry.ClusterRegistry
 	lManager  lease.Manager
@@ -45,6 +46,8 @@ type Engine struct {
 	trigger chan struct{}
 
 	updateEngineState func(newEngine machine.MachineState)
+
+	cState *clusterState
 }
 
 type CompleteRegistry interface {
@@ -54,8 +57,10 @@ type CompleteRegistry interface {
 
 func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine, updateEngineState func(newEngine machine.MachineState)) *Engine {
 	rec := NewReconciler()
+	recState := NewReconciler()
 	return &Engine{
 		rec:               rec,
+		recState:          recState,
 		registry:          reg,
 		cRegistry:         reg,
 		lManager:          lManager,
@@ -68,6 +73,9 @@ func New(reg CompleteRegistry, lManager lease.Manager, rStream pkg.EventStream, 
 
 func (e *Engine) Run(ival time.Duration, stop <-chan struct{}) {
 	leaseTTL := ival * 5
+	if e.machine.State().Capabilities.Has(machine.CapGRPC) {
+		leaseTTL = ival * 500000
+	}
 	machID := e.machine.State().ID
 
 	reconcile := func() {
@@ -130,6 +138,23 @@ func (e *Engine) Run(ival time.Duration, stop <-chan struct{}) {
 			log.Debug(msg)
 		}
 	}
+
+	refreshClusterState := func() {
+		lease, err := e.lManager.GetLease(engineLeaseName)
+		if err != nil {
+			log.Errorf("Unable to determine current lease: %v", err)
+		} else {
+			if isLeader(lease, machID) {
+				//log.Errorf("clusterStateclusterStateclusterState")
+				e.setClusterState()
+			} else {
+				return
+			}
+		}
+	}
+
+	recState := pkg.NewPeriodicReconciler(2*time.Second, refreshClusterState, e.rStream)
+	go recState.Run(stop)
 
 	rec := pkg.NewPeriodicReconciler(ival, reconcile, e.rStream)
 	rec.Run(stop)
@@ -239,26 +264,27 @@ func (e *Engine) Trigger() {
 	e.trigger <- struct{}{}
 }
 
-func (e *Engine) clusterState() (*clusterState, error) {
+func (e *Engine) ClusterState() *clusterState {
+	return e.cState
+}
+
+func (e *Engine) setClusterState() {
 	units, err := e.registry.Units()
 	if err != nil {
 		log.Errorf("Failed fetching Units from Registry: %v", err)
-		return nil, err
 	}
 
 	sUnits, err := e.registry.Schedule()
 	if err != nil {
 		log.Errorf("Failed fetching schedule from Registry: %v", err)
-		return nil, err
 	}
 
 	machines, err := e.registry.Machines()
 	if err != nil {
 		log.Errorf("Failed fetching Machines from Registry: %v", err)
-		return nil, err
 	}
 
-	return newClusterState(units, sUnits, machines), nil
+	e.cState = newClusterState(units, sUnits, machines)
 }
 
 func (e *Engine) unscheduleUnit(name, machID string) (err error) {
