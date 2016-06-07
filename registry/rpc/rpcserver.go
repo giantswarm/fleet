@@ -7,15 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/fleet/Godeps/_workspace/src/golang.org/x/net/context"
+	"golang.org/x/net/context"
 
-	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc"
-	"github.com/coreos/fleet/Godeps/_workspace/src/google.golang.org/grpc/codes"
 	"github.com/coreos/fleet/debug"
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
 	pb "github.com/coreos/fleet/protobuf"
 	"github.com/coreos/fleet/registry"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 var debugRPCServer bool = false

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/go-semver/semver"
+	"github.com/coreos/go-semver/semver"
 
 	"github.com/coreos/fleet/engine"
 	"github.com/coreos/fleet/job"
