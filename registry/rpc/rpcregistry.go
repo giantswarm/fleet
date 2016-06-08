@@ -238,6 +238,10 @@ func (r *RPCRegistry) SetMachineState(ms machine.MachineState, ttl time.Duration
 	panic("Set machine state function not implemented")
 }
 
+func (r *RPCRegistry) CreateMachineState(ms machine.MachineState, ttl time.Duration) (uint64, error) {
+	panic("Set machine state function not implemented")
+}
+
 func (r *RPCRegistry) Schedule() ([]job.ScheduledUnit, error) {
 	if DebugRPCRegistry {
 		defer debug.Exit_(debug.Enter_())
