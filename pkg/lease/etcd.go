@@ -20,6 +20,8 @@ import (
 	"time"
 
 	etcd "github.com/coreos/fleet/Godeps/_workspace/src/github.com/coreos/etcd/client"
+	"github.com/coreos/fleet/log"
+
 	"github.com/coreos/fleet/Godeps/_workspace/src/golang.org/x/net/context"
 )
 
@@ -53,8 +55,14 @@ func (l *etcdLease) Renew(period time.Duration) error {
 	val, err := serializeLeaseMetadata(l.meta.MachineID, l.meta.Version)
 	opts := &etcd.SetOptions{
 		PrevIndex: l.idx,
-		TTL:       period,
 	}
+
+	log.Infof("Renew %v", l.mgr.UseLeaseTTL)
+
+	if l.mgr.UseLeaseTTL {
+		opts.TTL = period
+	}
+
 	resp, err := l.mgr.kAPI.Set(l.mgr.ctx(), l.key, val, opts)
 	if err != nil {
 		return err
@@ -97,13 +105,14 @@ func serializeLeaseMetadata(machID string, ver int) (string, error) {
 }
 
 type etcdLeaseManager struct {
-	kAPI       etcd.KeysAPI
-	keyPrefix  string
-	reqTimeout time.Duration
+	kAPI        etcd.KeysAPI
+	keyPrefix   string
+	reqTimeout  time.Duration
+	UseLeaseTTL bool
 }
 
-func NewEtcdLeaseManager(kAPI etcd.KeysAPI, keyPrefix string, reqTimeout time.Duration) *etcdLeaseManager {
-	return &etcdLeaseManager{kAPI: kAPI, keyPrefix: keyPrefix, reqTimeout: reqTimeout}
+func NewEtcdLeaseManager(kAPI etcd.KeysAPI, keyPrefix string, reqTimeout time.Duration, useLeaseTTL bool) *etcdLeaseManager {
+	return &etcdLeaseManager{kAPI: kAPI, keyPrefix: keyPrefix, reqTimeout: reqTimeout, UseLeaseTTL: useLeaseTTL}
 }
 
 func (r *etcdLeaseManager) ctx() context.Context {
@@ -138,7 +147,12 @@ func (r *etcdLeaseManager) StealLease(name, machID string, ver int, period time.
 	key := r.leasePath(name)
 	opts := &etcd.SetOptions{
 		PrevIndex: idx,
-		TTL:       period,
+	}
+
+	log.Infof("StealLease %v", r.UseLeaseTTL)
+
+	if r.UseLeaseTTL {
+		opts.TTL = period
 	}
 	resp, err := r.kAPI.Set(r.ctx(), key, val, opts)
 	if err != nil {
@@ -160,8 +174,12 @@ func (r *etcdLeaseManager) AcquireLease(name string, machID string, ver int, per
 
 	key := r.leasePath(name)
 	opts := &etcd.SetOptions{
-		TTL:       period,
 		PrevExist: etcd.PrevNoExist,
+	}
+	log.Infof("AcquireLease %v", r.UseLeaseTTL)
+
+	if r.UseLeaseTTL {
+		opts.TTL = period
 	}
 
 	resp, err := r.kAPI.Set(r.ctx(), key, val, opts)

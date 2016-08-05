@@ -104,7 +104,7 @@ func New(cfg config.Config) (*Server, error) {
 		reg        engine.CompleteRegistry
 		genericReg interface{}
 	)
-	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
+	lManager := lease.NewEtcdLeaseManager(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout, cfg.UseLeaseTTL)
 
 	if !cfg.EnableGRPC {
 		genericReg = registry.NewEtcdRegistry(kAPI, cfg.EtcdKeyPrefix, etcdRequestTimeout)
