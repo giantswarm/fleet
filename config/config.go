@@ -38,6 +38,7 @@ type Config struct {
 	DisableWatches          bool
 	VerifyUnits             bool
 	AuthorizedKeysFile      string
+	UseLeaseTTL             bool
 }
 
 func (c *Config) Capabilities() machine.Capabilities {
