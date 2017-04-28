@@ -64,7 +64,7 @@ func (r *RPCRegistry) Connect() {
 	ep_engines := []string{":fleet-engine:"}
 	r.balancer = newSimpleBalancer(ep_engines)
 	connection, err := grpc.Dial(ep_engines[0],
-		grpc.WithTimeout(12*time.Second), grpc.WithInsecure(),
+		grpc.WithTimeout(300*time.Second), grpc.WithInsecure(),
 		grpc.WithDialer(r.dialer), grpc.WithBlock(), grpc.WithBalancer(r.balancer))
 	if err != nil {
 		log.Fatalf("Unable to dial to registry: %s", err)
